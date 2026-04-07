@@ -2,7 +2,6 @@ import os
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 from torch.utils.data import DataLoader, TensorDataset
 
 import sys
@@ -46,10 +45,10 @@ CONFIG = {
 # ============================================================
 def build_model(name):
     h = CONFIG['hidden_size']
-    l = CONFIG['num_layers']
+    num_layers = CONFIG['num_layers']
     if name == 'CNN-LSTM-Attention':
-        return CNNLSTMAttention(hidden_size=h, num_layers=l, cnn_channels=32)
-    return get_baseline(name, h, l)
+        return CNNLSTMAttention(hidden_size=h, num_layers=num_layers, cnn_channels=32)
+    return get_baseline(name, h, num_layers)
 
 
 # ============================================================
