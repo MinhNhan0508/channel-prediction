@@ -259,11 +259,11 @@ def get_all_models(config):
         'GRU'              : get_baseline('GRU',         h, num_layers),
         'Transformer'      : get_baseline('Transformer', h, num_layers),
         'CNN-LSTM-Attention': CNNLSTMAttention(
-            hidden_size  = h,
+            hidden_size  = 128,       
             num_layers   = num_layers,
-            cnn_channels = 32
-        ),
-    }
+            cnn_channels = 64,         
+            num_heads    = 4,
+        ), }
 
 
 # ============================================================
