@@ -308,6 +308,111 @@ def plot_attention_weights(velocity=300, n_samples=3):
     plt.show()
     print(f"Saved: {out}")
 
+# ============================================================
+# HÀM 9: Vẽ time series — kênh thật vs kênh dự đoán
+# ============================================================
+def plot_prediction_timeseries(velocity=300, n_show=200, snr_db=20):
+    """
+    Vẽ đồ thị trực quan nhất của đề tài:
+    - Đường xanh: kênh thật |h(t)|
+    - Đường đỏ: kênh model dự đoán |h_predicted(t)|
+    2 đường càng sát nhau → model dự đoán càng tốt.
+
+    Args:
+        velocity : tốc độ km/h (300 = khó nhất, 30 = dễ nhất)
+        n_show   : số bước thời gian hiển thị
+        snr_db   : mức SNR thêm vào input
+    """
+    os.makedirs(CONFIG['out_dir'], exist_ok=True)
+
+    X_test, y_test = load_test_data(velocity)
+
+    # Tính noise
+    signal_power = torch.mean(X_test ** 2).item()
+    snr_linear   = 10 ** (snr_db / 10)
+    noise_std    = np.sqrt(signal_power / snr_linear)
+
+    fig, axes = plt.subplots(2, 1, figsize=(14, 8))
+
+    # ── So sánh 2 model: LSTM baseline vs CNN-LSTM-Attention ──
+    models_to_plot = ['LSTM', 'CNN-LSTM-Attention']
+    line_colors    = {'LSTM': '#3498DB', 'CNN-LSTM-Attention': '#9B59B6'}
+
+    # Lấy ground truth từ y_test (n_show mẫu đầu)
+    y_true = y_test[:n_show].numpy()           # (n_show, 2)
+    h_true_amp = np.sqrt(y_true[:, 0]**2 + y_true[:, 1]**2)  # biên độ |h|
+
+    for ax, model_name in zip(axes, models_to_plot):
+        model = build_model(model_name)
+        model = load_checkpoint(model, model_name, velocity)
+
+        # Lấy n_show mẫu đầu
+        X_sample = X_test[:n_show].to(DEVICE)
+
+        # Thêm nhiễu
+        noise    = torch.randn_like(X_sample) * noise_std
+        X_noisy  = X_sample + noise
+
+        with torch.no_grad():
+            if hasattr(model, 'predict'):
+                pred = model.predict(X_noisy)
+            else:
+                pred = model(X_noisy)
+
+        pred_np = pred.cpu().numpy()           # (n_show, 2)
+        h_pred_amp = np.sqrt(pred_np[:, 0]**2 + pred_np[:, 1]**2)
+
+        t = np.arange(n_show)
+
+        # Vẽ ground truth
+        ax.plot(t, h_true_amp,
+                color='#2ECC71', linewidth=1.2,
+                label='Kênh thật |h(t)|', alpha=0.9)
+
+        # Vẽ prediction
+        ax.plot(t, h_pred_amp,
+                color=line_colors[model_name], linewidth=1.2,
+                linestyle='--',
+                label=f'{model_name} (dự đoán)', alpha=0.9)
+
+        # Tô vùng sai số
+        ax.fill_between(t,
+                        h_true_amp, h_pred_amp,
+                        alpha=0.15,
+                        color=line_colors[model_name],
+                        label='Sai số')
+
+        # Tính NMSE cho đoạn này
+        err     = pred_np - y_true
+        nmse    = 10 * np.log10(
+            np.sum(err**2) / (np.sum(y_true**2) + 1e-10)
+        )
+
+        ax.set_ylabel('Biên độ |h(t)|', fontsize=11)
+        ax.set_title(
+            f'{model_name} — v={velocity} km/h, SNR={snr_db} dB'
+            f' | NMSE = {nmse:.2f} dB',
+            fontsize=11
+        )
+        ax.legend(loc='upper right', fontsize=9)
+        ax.grid(True, alpha=0.3)
+        ax.set_ylim(bottom=0)
+
+    axes[-1].set_xlabel('Bước thời gian', fontsize=11)
+
+    plt.suptitle(
+        f'Dự đoán kênh truyền — So sánh LSTM vs CNN-LSTM-Attention\n'
+        f'v = {velocity} km/h | SNR = {snr_db} dB\n'
+        f'(Đường dự đoán càng sát đường thật càng tốt)',
+        fontsize=12, fontweight='bold'
+    )
+    plt.tight_layout()
+
+    out = os.path.join(CONFIG['out_dir'],
+                       f'prediction_timeseries_v{velocity}kmh.png')
+    plt.savefig(out, dpi=150, bbox_inches='tight')
+    plt.show()
+    print(f"  Saved: {out}")
 
 # ============================================================
 # CHẠY CHÍNH
@@ -349,6 +454,13 @@ if __name__ == "__main__":
     print("\nVẽ attention weights...")
     plot_attention_weights(velocity=300)
 
+    # Vẽ time series prediction
+    print("\nVẽ time series prediction...")
+    plot_prediction_timeseries(velocity=300)
+    plot_prediction_timeseries(velocity=120)
+    plot_prediction_timeseries(velocity=30)
+    
+    
     # Lưu kết quả số
     np.save('results/evaluation_results.npy', results)
     print("\nSaved: results/evaluation_results.npy")
