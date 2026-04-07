@@ -14,17 +14,17 @@ from models.proposed  import CNNLSTMAttention
 # ============================================================
 # CẤU HÌNH TRAINING
 # ============================================================
+
 CONFIG = {
-    'epochs'     : 50,        # số vòng lặp train
-    'batch_size' : 64,        # số mẫu xử lý cùng lúc
-    'lr'         : 1e-3,      # learning rate
-    'patience'   : 10,        # early stopping: dừng nếu
-                               # val_loss không giảm sau 10 epoch
-    'hidden_size': 64,        # số neurons LSTM
-    'num_layers' : 2,         # số lớp LSTM
+    'epochs'     : 150,     # tăng từ 50
+    'batch_size' : 64,
+    'lr'         : 5e-4,    # giảm từ 1e-3
+    'patience'   : 20,      # tăng từ 10
+    'hidden_size': 64,
+    'num_layers' : 2,
     'data_dir'   : 'data',
     'save_dir'   : 'results/checkpoints',
-    'velocities' : [30, 120, 300],   # km/h
+    'velocities' : [30, 120, 300]
 }
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -296,6 +296,8 @@ if __name__ == "__main__":
 
         # Train từng model
         for model_name, model in get_all_models(CONFIG).items():
+            if model_name != 'CNN-LSTM-Attention':
+                continue   
             history = train_model(
                 model, train_loader, test_loader,
                 CONFIG, model_name, velocity
