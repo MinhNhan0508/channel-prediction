@@ -8,7 +8,7 @@ import os
 FC = 2.4e9      # Tần số sóng mang: 2.4 GHz
 C  = 3e8        # Tốc độ ánh sáng (m/s)
 FS = 1000       # Tần số lấy mẫu: 1000 Hz
-N  = 10000      # Tổng số mẫu kênh sinh ra
+N  = 50000      # Tổng số mẫu kênh sinh ra
 SEQ_LEN = 50    # Độ dài chuỗi đầu vào LSTM (nhìn 50 bước quá khứ)
 TRAIN_RATIO = 0.8  # 80% train, 20% test
 N_PATHS = 20    # Số đường truyền trong mô hình Jakes
