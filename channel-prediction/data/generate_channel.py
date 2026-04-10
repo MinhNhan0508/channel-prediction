@@ -164,16 +164,18 @@ def generate_and_save(velocity_kmh, save_dir='data'):
     # Bước 3: Tạo sequences
     X, y = create_sequences(h, SEQ_LEN)
 
-    # Bước 4: Chuẩn hóa
-    X_norm, y_norm, scale = normalize(X, y)
+    # Bước 4: Chia train/test (LÀM TRƯỚC)
+    split   = int(len(X) * TRAIN_RATIO)
+    X_train, y_train = X[:split], y[:split]
+    X_test, y_test   = X[split:], y[split:]
 
-    # Bước 5: Chia train/test
-    split   = int(len(X_norm) * TRAIN_RATIO)
-    X_train = X_norm[:split]
-    y_train = y_norm[:split]
+    # Bước 5: Chuẩn hóa 
+    scale = np.max(np.abs(X_train))
+    X_train = X_train / scale
+    y_train = y_train / scale
     
-    X_test  = X_norm[split:]
-    y_test  = y_norm[split:]
+    X_test  = X_test / scale
+    y_test  = y_test / scale
 
     # Bước 6: Lưu file
     path = os.path.join(save_dir, f'channel_v{velocity_kmh}kmh.npz')

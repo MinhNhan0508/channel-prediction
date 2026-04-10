@@ -99,8 +99,16 @@ def train_one_epoch(model, loader, optimizer, criterion, device):
     for X_batch, y_batch in loader:
         X_batch = X_batch.to(device)
         y_batch = y_batch.to(device)
+        
+        # Thêm nhiễu
+        snr_train = np.random.uniform(10, 30)
+        signal_power = torch.mean(X_batch ** 2).item()
+        noise_std = np.sqrt(signal_power / (10 ** (snr_train / 10)))
+        X_noisy = X_batch + torch.randn_like(X_batch) * noise_std
 
         optimizer.zero_grad()
+        
+        out = model(X_noisy) if not hasattr(model, 'predict') else model.predict(X_noisy)
 
         # Forward: proposed model trả (out, weights), baselines trả out
         if hasattr(model, 'predict'):
@@ -296,8 +304,6 @@ if __name__ == "__main__":
 
         # Train từng model
         for model_name, model in get_all_models(CONFIG).items():
-            if model_name != 'CNN-LSTM-Attention':
-                continue   
             history = train_model(
                 model, train_loader, test_loader,
                 CONFIG, model_name, velocity
