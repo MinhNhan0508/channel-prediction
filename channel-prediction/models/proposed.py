@@ -21,10 +21,10 @@ class CNNBlock(nn.Module):
 
         self.conv1 = nn.Conv1d(input_size,   cnn_channels,
                                kernel_size, padding=pad)
-        self.bn1   = nn.BatchNorm1d(cnn_channels)
+        self.ln1 = nn.LayerNorm(cnn_channels)
         self.conv2 = nn.Conv1d(cnn_channels, cnn_channels,
                                kernel_size, padding=pad)
-        self.bn2   = nn.BatchNorm1d(cnn_channels)
+        self.ln2 = nn.LayerNorm(cnn_channels)
 
         # Project input_size → cnn_channels cho residual
         self.residual_proj = nn.Conv1d(input_size, cnn_channels,
@@ -33,17 +33,23 @@ class CNNBlock(nn.Module):
 
     def forward(self, x):
         # x: (batch, seq_len, input_size)
-        x_t = x.transpose(1, 2)               # (batch, input_size, seq_len)
+        x_t = x.transpose(1, 2)             
 
         # Main path
-        out = F.relu(self.bn1(self.conv1(x_t)))
+        out = self.conv1(x_t)             
+        out = out.transpose(1, 2)          
+        out = self.ln1(out)                  
+        out = out.transpose(1, 2)            
+        out = F.relu(out)
         out = self.dropout(out)
-        out = self.bn2(self.conv2(out))
 
+        out = self.conv2(out)                
+        out = out.transpose(1, 2)             
+        out = self.ln2(out)                  
+        out = out.transpose(1, 2)
         # Residual path
         res = self.residual_proj(x_t)
 
-        # Cộng lại + activate
         out = F.relu(out + res)
         return out.transpose(1, 2)             # (batch, seq_len, cnn_channels)
 
@@ -179,10 +185,10 @@ class CNNLSTMAttention(nn.Module):
     """
     def __init__(self,
                  input_size   = 2,
-                 cnn_channels = 64,
-                 hidden_size  = 128,
+                 cnn_channels = 32,
+                 hidden_size  = 64,
                  num_layers   = 2,
-                 num_heads    = 4,
+                 num_heads    = 2,
                  output_size  = 2,
                  kernel_size  = 3,
                  dropout      = 0.1):
@@ -293,19 +299,11 @@ if __name__ == "__main__":
     w_max = weights[0].max().item()
     w_std = weights[0].std().item()
     w_sum = weights[0].sum().item()
-    print(f"  Weight sum : {w_sum:.4f}  ← phải ≈ 1.0")
-    print(f"  Weight max : {w_max:.4f}  ← v1 bị 0.85+, v2 phải < 0.3")
-    print(f"  Weight std : {w_std:.4f}  ← càng cao càng phân biệt tốt")
+    print(f"  Weight sum : {w_sum:.4f}  ")
+    print(f"  Weight max : {w_max:.4f}  ")
+    print(f"  Weight std : {w_std:.4f}  ")
     print()
 
     has_nan = torch.isnan(out).any().item()
-    print(f"  NaN output : {has_nan}  ← phải False")
+    print(f"  NaN output : {has_nan} ")
     print()
-    print("  Kiến trúc v2:")
-    print("    CNN (+ residual) : 2 → 64 channels, kernel=3")
-    print("    LSTM             : 64 → 128, layers=2")
-    print("    Multi-Head Attn  : 4 heads × 32 dim")
-    print("    CNN Residual     : 64 → 128")
-    print("    FC               : 256 → 128 → 2")
-    print()
-    print("  Model v2 OK!")

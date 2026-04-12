@@ -16,12 +16,12 @@ from models.proposed  import CNNLSTMAttention
 # ============================================================
 
 CONFIG = {
-    'epochs'     : 150,     # tăng từ 50
+    'epochs'     : 150,    
     'batch_size' : 64,
-    'lr'         : 5e-4,    # giảm từ 1e-3
-    'patience'   : 20,      # tăng từ 10
+    'lr'         : 5e-4,    
+    'patience'   : 20,      
     'hidden_size': 64,
-    'num_layers' : 2,
+    'num_layers' : 3,
     'data_dir'   : 'data',
     'save_dir'   : 'results/checkpoints',
     'velocities' : [30, 120, 300]
@@ -81,18 +81,6 @@ def load_data(velocity, data_dir='data', batch_size=64):
 # HÀM 2: Train 1 epoch
 # ============================================================
 def train_one_epoch(model, loader, optimizer, criterion, device):
-    """
-    Chạy 1 vòng train qua toàn bộ training data.
-
-    Mỗi batch:
-      1. Forward pass  : model tính output
-      2. Tính loss     : so sánh output với target
-      3. Backward pass : tính gradient
-      4. Update weights: optimizer cập nhật params
-
-    Returns:
-        loss trung bình của epoch này
-    """
     model.train()
     total_loss = 0.0
 
@@ -109,12 +97,6 @@ def train_one_epoch(model, loader, optimizer, criterion, device):
         optimizer.zero_grad()
         
         out = model(X_noisy) if not hasattr(model, 'predict') else model.predict(X_noisy)
-
-        # Forward: proposed model trả (out, weights), baselines trả out
-        if hasattr(model, 'predict'):
-            out = model.predict(X_batch)
-        else:
-            out = model(X_batch)
 
         loss = criterion(out, y_batch)
         loss.backward()
@@ -183,9 +165,16 @@ def train_model(model, train_loader, test_loader,
     Returns:
         history: dict chứa train_loss và val_loss theo epoch
     """
+    if velocity == 300:
+        current_lr = 2e-4
+        current_patience = 40
+    else:
+        current_lr = 5e-4
+        current_patience = 20
+
     model = model.to(DEVICE)
     criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'])
+    optimizer = torch.optim.Adam(model.parameters(), lr=current_lr)
 
     # Learning rate scheduler: giảm lr khi val_loss không giảm
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -241,7 +230,7 @@ def train_model(model, train_loader, test_loader,
             patience_count += 1
 
         # Early stopping
-        if patience_count >= config['patience']:
+        if patience_count >= current_patience:
             print(f"  Early stopping tại epoch {epoch} "
                   f"(best val_loss={best_val_loss:.6f})")
             break
@@ -267,10 +256,10 @@ def get_all_models(config):
         'GRU'              : get_baseline('GRU',         h, num_layers),
         'Transformer'      : get_baseline('Transformer', h, num_layers),
         'CNN-LSTM-Attention': CNNLSTMAttention(
-            hidden_size  = 128,       
+            hidden_size  = 64,       
             num_layers   = num_layers,
-            cnn_channels = 64,         
-            num_heads    = 4,
+            cnn_channels = 32,         
+            num_heads    = 2,
         ), }
 
 
@@ -302,8 +291,11 @@ if __name__ == "__main__":
         )
         print(f"  Data loaded: train={n_train}, test={n_test}")
 
-        # Train từng model
+        # Train
         for model_name, model in get_all_models(CONFIG).items():
+            if model_name != 'CNN-LSTM-Attention':
+                continue
+            
             history = train_model(
                 model, train_loader, test_loader,
                 CONFIG, model_name, velocity

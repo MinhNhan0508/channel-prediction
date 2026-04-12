@@ -45,11 +45,14 @@ CONFIG = {
 # ============================================================
 def build_model(name):
     h = CONFIG['hidden_size']
-    num_layers = CONFIG['num_layers']
+    num_layers_baseline = CONFIG['num_layers'] # Bằng 2
+    
     if name == 'CNN-LSTM-Attention':
-        return CNNLSTMAttention(hidden_size=128, num_layers=num_layers,
-                                cnn_channels=64, num_heads=4)
-    return get_baseline(name, h, num_layers)
+        # Ép cứng num_layers=3 cho riêng model của mình
+        return CNNLSTMAttention(hidden_size=64, num_layers=3,
+                                cnn_channels=32, num_heads=2)
+                                
+    return get_baseline(name, h, num_layers_baseline)
 
 
 # ============================================================
@@ -456,10 +459,9 @@ if __name__ == "__main__":
 
     # Vẽ time series prediction
     print("\nVẽ time series prediction...")
-    plot_prediction_timeseries(velocity=300)
-    plot_prediction_timeseries(velocity=120)
     plot_prediction_timeseries(velocity=30)
-    
+    plot_prediction_timeseries(velocity=120)
+    plot_prediction_timeseries(velocity=300)
     
     # Lưu kết quả số
     np.save('results/evaluation_results.npy', results)
