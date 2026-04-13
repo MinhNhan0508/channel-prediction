@@ -46,13 +46,13 @@ CONFIG = {
 # ============================================================
 def build_model(name):
     h = CONFIG['hidden_size']
-    l = CONFIG['num_layers']
+    num_layers = CONFIG['num_layers']
     if name == 'CNN-LSTM-Attention':
         return CNNLSTMAttention(
-            hidden_size=h, num_layers=l,
+            hidden_size=h, num_layers=num_layers,
             cnn_channels=32, num_heads=2
         )
-    return get_baseline(name, h, l)
+    return get_baseline(name, h, num_layers)
 
 
 # ============================================================
