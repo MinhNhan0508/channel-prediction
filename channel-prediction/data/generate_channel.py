@@ -135,56 +135,36 @@ def normalize(X, y):
 # ============================================================
 # HÀM 5: Pipeline đầy đủ - sinh, xử lý và lưu data
 # ============================================================
-def generate_and_save(velocity_kmh, save_dir='data'):
-    """
-    Pipeline đầy đủ cho 1 tốc độ:
-      1. Tính Doppler
-      2. Sinh kênh Rayleigh
-      3. Tạo sequences
-      4. Chuẩn hóa
-      5. Chia train/test
-      6. Lưu file .npz
-
-    Args:
-        velocity_kmh : tốc độ di chuyển (km/h)
-        save_dir     : thư mục lưu data
-
-    Returns:
-        dict chứa X_train, y_train, X_test, y_test, h_raw
-    """
+def generate_and_save(velocity_kmh, save_dir='data', seed=42):
     os.makedirs(save_dir, exist_ok=True)
 
-    # Bước 1: Tính Doppler
     fd = compute_doppler(velocity_kmh)
-    print(f"\n[v = {velocity_kmh:>3} km/h]  fd = {fd:>7.1f} Hz")
+    print(f"\n[v = {velocity_kmh:>3} km/h | seed={seed}]  fd = {fd:>7.1f} Hz")
 
-    # Bước 2: Sinh kênh
-    h = generate_rayleigh_jakes(N, fd)
+    # Sinh kênh với seed cụ thể
+    h = generate_rayleigh_jakes(N, fd, seed=seed)
 
-    # Bước 3: Tạo sequences
     X, y = create_sequences(h, SEQ_LEN)
 
-    # Bước 4: Chia train/test (LÀM TRƯỚC)
-    split   = int(len(X) * TRAIN_RATIO)
+    split = int(len(X) * TRAIN_RATIO)
     X_train, y_train = X[:split], y[:split]
-    X_test, y_test   = X[split:], y[split:]
+    X_test,  y_test  = X[split:], y[split:]
 
-    # Bước 5: Chuẩn hóa 
-    scale = np.max(np.abs(X_train))
+    scale   = np.max(np.abs(X_train))
     X_train = X_train / scale
     y_train = y_train / scale
-    
-    X_test  = X_test / scale
-    y_test  = y_test / scale
+    X_test  = X_test  / scale
+    y_test  = y_test  / scale
 
-    # Bước 6: Lưu file
-    path = os.path.join(save_dir, f'channel_v{velocity_kmh}kmh.npz')
+    # Tên file kèm seed
+    path = os.path.join(save_dir, f'channel_v{velocity_kmh}kmh_s{seed}.npz')
     np.savez(path,
              X_train=X_train, y_train=y_train,
              X_test=X_test,   y_test=y_test,
              h_raw=h,         scale=np.array([scale]),
              velocity=np.array([velocity_kmh]),
-             fd=np.array([fd]))
+             fd=np.array([fd]),
+             seed=np.array([seed]))
 
     print(f"  Train: {X_train.shape}  |  Test: {X_test.shape}")
     print(f"  Saved: {path}")
@@ -195,7 +175,6 @@ def generate_and_save(velocity_kmh, save_dir='data'):
         'h_raw':   h,       'scale':   scale,
         'fd':      fd
     }
-
 
 # ============================================================
 # HÀM 6: Vẽ đồ thị kênh truyền
@@ -245,16 +224,29 @@ if __name__ == "__main__":
     print("=" * 55)
     print("  Rayleigh Fading Channel Data Generator")
     print(f"  N={N} samples | seq_len={SEQ_LEN} | fs={FS} Hz")
+    print("  Seeds: 42, 123, 456 (3 channel realizations)")
     print("=" * 55)
 
-    velocities   = [30, 120, 300]   # km/h: đô thị, cao tốc, tàu nhanh
-    results_list = []
+    velocities = [30, 120, 300]
+    seeds      = [42, 123, 456]
 
+    for seed in seeds:
+        print(f"\n{'='*55}")
+        print(f"  Seed = {seed}")
+        print(f"{'='*55}")
+        results_list = []
+        for v in velocities:
+            data = generate_and_save(v, seed=seed)
+            results_list.append(data)
+
+    # Vẽ đồ thị cho seed=42 làm đại diện
+    print("\nVẽ đồ thị kênh cho seed=42...")
+    results_seed42 = []
     for v in velocities:
-        data = generate_and_save(v)
-        results_list.append(data)
-
-    # Vẽ đồ thị so sánh 3 tốc độ
-    plot_channels(results_list, velocities)
-
-    print("\nXong! Kiểm tra thư mục data/ và results/")
+        path = os.path.join('data', f'channel_v{v}kmh_s42.npz')
+        d    = np.load(path)
+        results_seed42.append({
+            'h_raw': d['h_raw'],
+            'fd'   : float(d['fd'][0])
+        })
+    plot_channels(results_seed42, velocities)

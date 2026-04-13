@@ -15,13 +15,16 @@ from models.proposed  import CNNLSTMAttention
 # ============================================================
 DEVICE      = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 VELOCITIES  = [30, 120, 300]
+SEEDS       = [42, 123, 456]
 MODEL_NAMES = ['RNN', 'LSTM', 'GRU', 'Transformer', 'CNN-LSTM-Attention']
-COLORS      = {
-    'RNN'              : '#E74C3C',   # đỏ
-    'LSTM'             : '#3498DB',   # xanh dương
-    'GRU'              : '#2ECC71',   # xanh lá
-    'Transformer'      : '#F39C12',   # cam
-    'CNN-LSTM-Attention': '#9B59B6',  # tím - model đề xuất
+SNR_RANGE   = list(range(0, 31, 5))
+
+COLORS = {
+    'RNN'              : '#E74C3C',
+    'LSTM'             : '#3498DB',
+    'GRU'              : '#2ECC71',
+    'Transformer'      : '#F39C12',
+    'CNN-LSTM-Attention': '#9B59B6',
 }
 MARKERS = {
     'RNN': 'o', 'LSTM': 's', 'GRU': '^',
@@ -35,40 +38,33 @@ CONFIG = {
     'ckpt_dir'   : 'results/checkpoints',
     'out_dir'    : 'results',
     'batch_size' : 256,
-    # Dải SNR để vẽ đồ thị NMSE vs SNR (dB)
-    'snr_range'  : list(range(0, 31, 5)),  # 0, 5, 10, ..., 30 dB
 }
 
 
 # ============================================================
-# HÀM 1: Tạo lại tất cả model (cùng config với train.py)
+# HÀM 1: Tạo model
 # ============================================================
 def build_model(name):
     h = CONFIG['hidden_size']
-    num_layers_baseline = CONFIG['num_layers'] # Bằng 2
-    
+    l = CONFIG['num_layers']
     if name == 'CNN-LSTM-Attention':
-        # Ép cứng num_layers=3 cho riêng model của mình
-        return CNNLSTMAttention(hidden_size=64, num_layers=2,
-                                cnn_channels=32, num_heads=2)
-                                
-    return get_baseline(name, h, num_layers_baseline)
+        return CNNLSTMAttention(
+            hidden_size=h, num_layers=l,
+            cnn_channels=32, num_heads=2
+        )
+    return get_baseline(name, h, l)
 
 
 # ============================================================
-# HÀM 2: Load checkpoint đã train
+# HÀM 2: Load checkpoint
 # ============================================================
-def load_checkpoint(model, name, velocity):
-    """
-    Load weights tốt nhất đã lưu từ train.py.
-    """
+def load_checkpoint(model, name, velocity, seed):
     path = os.path.join(
         CONFIG['ckpt_dir'],
-        f'{name}_v{velocity}kmh.pth'
+        f'{name}_v{velocity}kmh_s{seed}.pth'
     )
     if not os.path.exists(path):
-        raise FileNotFoundError(f"Không tìm thấy checkpoint: {path}")
-
+        raise FileNotFoundError(f"Không tìm thấy: {path}")
     ckpt = torch.load(path, map_location=DEVICE)
     model.load_state_dict(ckpt['model_state'])
     model.to(DEVICE)
@@ -77,393 +73,266 @@ def load_checkpoint(model, name, velocity):
 
 
 # ============================================================
-# HÀM 3: Tính NMSE (dB) tại 1 mức SNR
+# HÀM 3: Load test data
+# ============================================================
+def load_test_data(velocity, seed):
+    path = os.path.join(
+        CONFIG['data_dir'],
+        f'channel_v{velocity}kmh_s{seed}.npz'
+    )
+    d = np.load(path)
+    return torch.FloatTensor(d['X_test']), torch.FloatTensor(d['y_test'])
+
+
+# ============================================================
+# HÀM 4: Tính NMSE tại 1 mức SNR
 # ============================================================
 def compute_nmse_at_snr(model, X_test, y_test, snr_db):
-    """
-    Tính NMSE tại một mức SNR cụ thể.
-
-    Quy trình:
-      1. Thêm nhiễu AWGN vào input X_test tương ứng với SNR
-      2. Cho model dự đoán
-      3. Tính NMSE giữa dự đoán và ground truth
-
-    NMSE (dB) = 10 * log10( ||y_pred - y_true||² / ||y_true||² )
-    Số càng âm càng tốt. Ví dụ: -15 dB tốt hơn -10 dB.
-
-    Args:
-        model   : model đã load weights
-        X_test  : input tensor (N, seq_len, 2)
-        y_test  : target tensor (N, 2)
-        snr_db  : mức SNR tính bằng dB
-
-    Returns:
-        nmse_db : NMSE tính bằng dB (float)
-    """
-    # Tính noise power từ SNR
-    # SNR = signal_power / noise_power
-    # noise_power = signal_power / SNR
     signal_power = torch.mean(X_test ** 2).item()
-    snr_linear   = 10 ** (snr_db / 10)
-    noise_power  = signal_power / snr_linear
-    noise_std    = np.sqrt(noise_power)
+    noise_std    = np.sqrt(signal_power / (10 ** (snr_db / 10)))
 
-    dataset = TensorDataset(X_test, y_test)
-    loader  = DataLoader(dataset, batch_size=CONFIG['batch_size'],
-                         shuffle=False)
+    loader = DataLoader(
+        TensorDataset(X_test, y_test),
+        batch_size=CONFIG['batch_size'], shuffle=False
+    )
 
-    all_preds  = []
-    all_targets = []
-
+    all_preds, all_targets = [], []
     with torch.no_grad():
         for X_batch, y_batch in loader:
             X_batch = X_batch.to(DEVICE)
-            y_batch = y_batch.to(DEVICE)
-
-            # Thêm nhiễu Gaussian vào input
-            noise   = torch.randn_like(X_batch) * noise_std
-            X_noisy = X_batch + noise
-
-            # Forward pass
+            X_noisy = X_batch + torch.randn_like(X_batch) * noise_std
             if hasattr(model, 'predict'):
                 pred = model.predict(X_noisy)
             else:
                 pred = model(X_noisy)
-
             all_preds.append(pred.cpu())
-            all_targets.append(y_batch.cpu())
+            all_targets.append(y_batch)
 
-    preds   = torch.cat(all_preds,   dim=0).numpy()
-    targets = torch.cat(all_targets, dim=0).numpy()
-
-    # Tính NMSE
-    error        = preds - targets
-    nmse_linear  = (np.sum(error ** 2)) / (np.sum(targets ** 2))
-    nmse_db      = 10 * np.log10(nmse_linear + 1e-10)  # +1e-10 tránh log(0)
-
-    return nmse_db
+    preds   = torch.cat(all_preds).numpy()
+    targets = torch.cat(all_targets).numpy()
+    error   = preds - targets
+    nmse    = np.sum(error**2) / (np.sum(targets**2) + 1e-10)
+    return 10 * np.log10(nmse + 1e-10)
 
 
 # ============================================================
-# HÀM 4: Đánh giá 1 model trên toàn bộ SNR range
+# HÀM 5: Evaluate 1 model, 1 seed — toàn bộ SNR range
 # ============================================================
-def evaluate_model(name, velocity, X_test, y_test):
-    """
-    Đánh giá 1 model tại tất cả mức SNR.
-
-    Returns:
-        list NMSE(dB) tương ứng với CONFIG['snr_range']
-    """
+def evaluate_one(name, velocity, seed):
     model = build_model(name)
-    model = load_checkpoint(model, name, velocity)
-
-    nmse_list = []
-    for snr in CONFIG['snr_range']:
-        nmse = compute_nmse_at_snr(model, X_test, y_test, snr)
-        nmse_list.append(nmse)
-
-    return nmse_list
+    model = load_checkpoint(model, name, velocity, seed)
+    X, y  = load_test_data(velocity, seed)
+    return [compute_nmse_at_snr(model, X, y, snr) for snr in SNR_RANGE]
 
 
 # ============================================================
-# HÀM 5: Load test data
+# HÀM 6: Mean ± std NMSE qua tất cả seeds
 # ============================================================
-def load_test_data(velocity):
-    path = os.path.join(CONFIG['data_dir'], f'channel_v{velocity}kmh.npz')
-    d    = np.load(path)
-    X    = torch.FloatTensor(d['X_test'])
-    y    = torch.FloatTensor(d['y_test'])
-    return X, y
+def evaluate_mean_std(name, velocity):
+    all_runs = [evaluate_one(name, velocity, s) for s in SEEDS]
+    arr      = np.array(all_runs)   # (n_seeds, n_snr)
+    return arr.mean(axis=0).tolist(), arr.std(axis=0).tolist()
 
 
 # ============================================================
-# HÀM 6: Vẽ đồ thị NMSE vs SNR cho 3 tốc độ
+# HÀM 7: Vẽ NMSE vs SNR với error band
 # ============================================================
 def plot_nmse_vs_snr(results):
-    """
-    Vẽ 3 subplot NMSE vs SNR cho 3 tốc độ.
-    results: dict[velocity][model_name] = list of NMSE(dB)
-
-    Đây là hình chính trong báo cáo đồ án.
-    """
     os.makedirs(CONFIG['out_dir'], exist_ok=True)
-
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
     titles    = ['v = 30 km/h\n(Đô thị)',
                  'v = 120 km/h\n(Cao tốc)',
                  'v = 300 km/h\n(Tàu cao tốc)']
 
     for ax, velocity, title in zip(axes, VELOCITIES, titles):
         for name in MODEL_NAMES:
-            nmse_vals = results[velocity][name]
-            lw  = 2.5 if name == 'CNN-LSTM-Attention' else 1.5
-            zord = 5  if name == 'CNN-LSTM-Attention' else 3
+            mean_v, std_v = results[velocity][name]
+            mean_arr = np.array(mean_v)
+            std_arr  = np.array(std_v)
+            lw   = 2.5 if name == 'CNN-LSTM-Attention' else 1.5
+            ls   = '-'  if name == 'CNN-LSTM-Attention' else '--'
 
-            ax.plot(
-                CONFIG['snr_range'], nmse_vals,
-                color     = COLORS[name],
-                marker    = MARKERS[name],
-                linewidth = lw,
-                markersize= 7,
-                label     = name,
-                zorder    = zord,
-                linestyle = '-' if name == 'CNN-LSTM-Attention' else '--'
-            )
+            ax.plot(SNR_RANGE, mean_arr,
+                    color=COLORS[name], marker=MARKERS[name],
+                    linewidth=lw, linestyle=ls,
+                    markersize=7, label=name)
+            ax.fill_between(SNR_RANGE,
+                            mean_arr - std_arr,
+                            mean_arr + std_arr,
+                            color=COLORS[name], alpha=0.12)
 
         ax.set_xlabel('SNR (dB)', fontsize=12)
         ax.set_ylabel('NMSE (dB)', fontsize=12)
         ax.set_title(title, fontsize=12)
         ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=9, loc='upper right')
-
-        # Thêm chú thích "Proposed" cho model đề xuất
-        ax.annotate(
-            'Proposed',
-            xy     = (CONFIG['snr_range'][-1],
-                      results[velocity]['CNN-LSTM-Attention'][-1]),
-            xytext = (-40, 10),
-            textcoords='offset points',
-            color  = COLORS['CNN-LSTM-Attention'],
-            fontsize=9,
-            fontweight='bold'
-        )
+        ax.legend(fontsize=9)
 
     plt.suptitle(
-        'NMSE vs SNR — So sánh các mô hình Channel Prediction\n',
+        f'NMSE vs SNR — Mean ± Std qua {len(SEEDS)} seeds\n'
+        '(Số càng âm càng tốt)',
         fontsize=13, fontweight='bold'
     )
     plt.tight_layout()
-
-    out = os.path.join(CONFIG['out_dir'], 'nmse_vs_snr.png')
+    out = os.path.join(CONFIG['out_dir'], 'nmse_vs_snr_multiseed.png')
     plt.savefig(out, dpi=150, bbox_inches='tight')
     plt.show()
     print(f"Saved: {out}")
 
 
 # ============================================================
-# HÀM 7: In bảng tổng kết NMSE tại SNR = 20 dB
+# HÀM 8: Bảng tổng kết tại SNR = 20 dB
 # ============================================================
 def print_summary_table(results, snr_target=20):
-    """
-    In bảng so sánh NMSE tại 1 mức SNR cụ thể.
-    SNR = 20 dB là mức phổ biến nhất trong paper.
-    """
-    idx = CONFIG['snr_range'].index(snr_target)
-
-    print("\n" + "=" * 65)
-    print(f"  NMSE (dB) tại SNR = {snr_target} dB")
-    print("  (Số càng âm càng tốt)")
-    print("=" * 65)
-    print(f"  {'Model':<22} | {'30 km/h':>9} | "
-          f"{'120 km/h':>9} | {'300 km/h':>9}")
-    print("  " + "-" * 57)
+    idx = SNR_RANGE.index(snr_target)
+    print("\n" + "=" * 75)
+    print(f"  NMSE (dB) tại SNR = {snr_target} dB — "
+          f"Mean ± Std qua {len(SEEDS)} seeds")
+    print("=" * 75)
+    print(f"  {'Model':<22} | {'30 km/h':>16} | "
+          f"{'120 km/h':>16} | {'300 km/h':>16}")
+    print("  " + "-" * 73)
 
     for name in MODEL_NAMES:
-        vals = [results[v][name][idx] for v in VELOCITIES]
-        marker = " ★" if name == 'CNN-LSTM-Attention' else "  "
-        print(f"  {name:<22}{marker}| {vals[0]:>8.2f} | "
-              f"{vals[1]:>8.2f} | {vals[2]:>8.2f}")
+        mk  = " ★" if name == 'CNN-LSTM-Attention' else "  "
+        row = f"  {name:<22}{mk}|"
+        for v in VELOCITIES:
+            m, s = results[v][name]
+            row += f" {m[idx]:>6.2f}±{s[idx]:>4.2f} dB |"
+        print(row)
 
-    print("=" * 65)
+    print("=" * 75)
     print("  ★ = Model đề xuất")
 
 
 # ============================================================
-# HÀM 8: Visualize Attention Weights
+# HÀM 9: Time series (seed=42 đại diện)
 # ============================================================
-def plot_attention_weights(velocity=300, n_samples=3):
-    """
-    Visualize attention weights của CNN-LSTM-Attention.
-    Cho thấy model đang 'chú ý' vào bước thời gian nào trong chuỗi.
-    Đây là hình minh họa tính giải thích được của model đề xuất.
-    """
-    X_test, y_test = load_test_data(velocity)
-
-    model = build_model('CNN-LSTM-Attention')
-    model = load_checkpoint(model, 'CNN-LSTM-Attention', velocity)
-
-    # Lấy n_samples mẫu đầu
-    X_sample = X_test[:n_samples].to(DEVICE)
-
-    with torch.no_grad():
-        _, weights = model(X_sample)
-
-    weights = weights.cpu().numpy()  # (n_samples, seq_len)
-
-    fig, axes = plt.subplots(1, n_samples, figsize=(14, 3))
-    for i, ax in enumerate(axes):
-        ax.bar(range(len(weights[i])), weights[i],
-               color='#9B59B6', alpha=0.7)
-        ax.set_xlabel('Bước thời gian (quá khứ)', fontsize=10)
-        ax.set_ylabel('Attention weight', fontsize=10)
-        ax.set_title(f'Mẫu {i+1} — v={velocity} km/h', fontsize=10)
-        ax.grid(True, alpha=0.3, axis='y')
-
-    plt.suptitle(
-        'Attention Weights — CNN-LSTM-Attention (Model đề xuất)\n'
-        'Bước thời gian nào được model chú ý nhiều nhất',
-        fontsize=12
-    )
-    plt.tight_layout()
-
-    out = os.path.join(CONFIG['out_dir'], 'attention_weights.png')
-    plt.savefig(out, dpi=150, bbox_inches='tight')
-    plt.show()
-    print(f"Saved: {out}")
-
-# ============================================================
-# HÀM 9: Vẽ time series — kênh thật vs kênh dự đoán
-# ============================================================
-def plot_prediction_timeseries(velocity=300, n_show=200, snr_db=20):
-    """
-    Vẽ đồ thị trực quan nhất của đề tài:
-    - Đường xanh: kênh thật |h(t)|
-    - Đường đỏ: kênh model dự đoán |h_predicted(t)|
-    2 đường càng sát nhau → model dự đoán càng tốt.
-
-    Args:
-        velocity : tốc độ km/h (300 = khó nhất, 30 = dễ nhất)
-        n_show   : số bước thời gian hiển thị
-        snr_db   : mức SNR thêm vào input
-    """
+def plot_timeseries(velocity=300, snr_db=20, seed=42, n_show=200):
     os.makedirs(CONFIG['out_dir'], exist_ok=True)
-
-    X_test, y_test = load_test_data(velocity)
-
-    # Tính noise
-    signal_power = torch.mean(X_test ** 2).item()
-    snr_linear   = 10 ** (snr_db / 10)
-    noise_std    = np.sqrt(signal_power / snr_linear)
+    X_test, y_test = load_test_data(velocity, seed)
+    signal_power   = torch.mean(X_test**2).item()
+    noise_std      = np.sqrt(signal_power / (10**(snr_db/10)))
 
     fig, axes = plt.subplots(2, 1, figsize=(14, 8))
+    y_true     = y_test[:n_show].numpy()
+    h_true_amp = np.sqrt(y_true[:,0]**2 + y_true[:,1]**2)
 
-    # ── So sánh 2 model: LSTM baseline vs CNN-LSTM-Attention ──
-    models_to_plot = ['LSTM', 'CNN-LSTM-Attention']
-    line_colors    = {'LSTM': '#3498DB', 'CNN-LSTM-Attention': '#9B59B6'}
-
-    # Lấy ground truth từ y_test (n_show mẫu đầu)
-    y_true = y_test[:n_show].numpy()           # (n_show, 2)
-    h_true_amp = np.sqrt(y_true[:, 0]**2 + y_true[:, 1]**2)  # biên độ |h|
-
-    for ax, model_name in zip(axes, models_to_plot):
-        model = build_model(model_name)
-        model = load_checkpoint(model, model_name, velocity)
-
-        # Lấy n_show mẫu đầu
-        X_sample = X_test[:n_show].to(DEVICE)
-
-        # Thêm nhiễu
-        noise    = torch.randn_like(X_sample) * noise_std
-        X_noisy  = X_sample + noise
+    for ax, name, color in zip(
+        axes,
+        ['LSTM', 'CNN-LSTM-Attention'],
+        ['#3498DB', '#9B59B6']
+    ):
+        model = build_model(name)
+        model = load_checkpoint(model, name, velocity, seed)
+        X_s   = X_test[:n_show].to(DEVICE)
+        X_n   = X_s + torch.randn_like(X_s) * noise_std
 
         with torch.no_grad():
-            if hasattr(model, 'predict'):
-                pred = model.predict(X_noisy)
-            else:
-                pred = model(X_noisy)
+            pred = model.predict(X_n) if hasattr(model, 'predict') \
+                   else model(X_n)
 
-        pred_np = pred.cpu().numpy()           # (n_show, 2)
-        h_pred_amp = np.sqrt(pred_np[:, 0]**2 + pred_np[:, 1]**2)
+        pred_np    = pred.cpu().numpy()
+        h_pred_amp = np.sqrt(pred_np[:,0]**2 + pred_np[:,1]**2)
+        t          = np.arange(n_show)
+        err        = pred_np - y_true
+        nmse       = 10 * np.log10(
+            np.sum(err**2) / (np.sum(y_true**2) + 1e-10))
 
-        t = np.arange(n_show)
-
-        # Vẽ ground truth
-        ax.plot(t, h_true_amp,
-                color='#2ECC71', linewidth=1.2,
+        ax.plot(t, h_true_amp, color='#2ECC71', linewidth=1.2,
                 label='Kênh thật |h(t)|', alpha=0.9)
-
-        # Vẽ prediction
-        ax.plot(t, h_pred_amp,
-                color=line_colors[model_name], linewidth=1.2,
-                linestyle='--',
-                label=f'{model_name} (dự đoán)', alpha=0.9)
-
-        # Tô vùng sai số
-        ax.fill_between(t,
-                        h_true_amp, h_pred_amp,
-                        alpha=0.15,
-                        color=line_colors[model_name],
-                        label='Sai số')
-
-        # Tính NMSE cho đoạn này
-        err     = pred_np - y_true
-        nmse    = 10 * np.log10(
-            np.sum(err**2) / (np.sum(y_true**2) + 1e-10)
-        )
-
+        ax.plot(t, h_pred_amp, color=color, linewidth=1.2,
+                linestyle='--', label=f'{name} (dự đoán)', alpha=0.9)
+        ax.fill_between(t, h_true_amp, h_pred_amp,
+                        alpha=0.15, color=color)
         ax.set_ylabel('Biên độ |h(t)|', fontsize=11)
         ax.set_title(
-            f'{model_name} — v={velocity} km/h, SNR={snr_db} dB'
-            f' | NMSE = {nmse:.2f} dB',
-            fontsize=11
-        )
+            f'{name} — v={velocity} km/h, SNR={snr_db} dB'
+            f' | NMSE = {nmse:.2f} dB', fontsize=11)
         ax.legend(loc='upper right', fontsize=9)
         ax.grid(True, alpha=0.3)
         ax.set_ylim(bottom=0)
 
     axes[-1].set_xlabel('Bước thời gian', fontsize=11)
-
     plt.suptitle(
-        f'Dự đoán kênh truyền — So sánh LSTM vs CNN-LSTM-Attention\n'
-        f'v = {velocity} km/h | SNR = {snr_db} dB\n'
-        f'(Đường dự đoán càng sát đường thật càng tốt)',
+        f'Dự đoán kênh — v={velocity} km/h | SNR={snr_db} dB | '
+        f'seed={seed} (đại diện)',
         fontsize=12, fontweight='bold'
     )
     plt.tight_layout()
-
     out = os.path.join(CONFIG['out_dir'],
-                       f'prediction_timeseries_v{velocity}kmh.png')
+                       f'timeseries_v{velocity}kmh.png')
     plt.savefig(out, dpi=150, bbox_inches='tight')
     plt.show()
-    print(f"  Saved: {out}")
+    print(f"Saved: {out}")
+
+
+# ============================================================
+# HÀM 10: Attention weights
+# ============================================================
+def plot_attention_weights(velocity=300, seed=42, n_samples=3):
+    os.makedirs(CONFIG['out_dir'], exist_ok=True)
+    X_test, _ = load_test_data(velocity, seed)
+    model     = build_model('CNN-LSTM-Attention')
+    model     = load_checkpoint(model, 'CNN-LSTM-Attention', velocity, seed)
+
+    with torch.no_grad():
+        _, weights = model(X_test[:n_samples].to(DEVICE))
+    weights = weights.cpu().numpy()
+
+    fig, axes = plt.subplots(1, n_samples, figsize=(14, 3))
+    for i, ax in enumerate(axes):
+        ax.bar(range(len(weights[i])), weights[i],
+               color='#9B59B6', alpha=0.7)
+        ax.set_xlabel('Bước thời gian', fontsize=10)
+        ax.set_ylabel('Attention weight', fontsize=10)
+        ax.set_title(f'Mẫu {i+1} — v={velocity} km/h', fontsize=10)
+        ax.grid(True, alpha=0.3, axis='y')
+
+    plt.suptitle(
+        'Attention Weights — CNN-LSTM-Attention\n'
+        'Bước thời gian nào được model chú ý nhiều nhất',
+        fontsize=12
+    )
+    plt.tight_layout()
+    out = os.path.join(CONFIG['out_dir'], 'attention_weights.png')
+    plt.savefig(out, dpi=150, bbox_inches='tight')
+    plt.show()
+    print(f"Saved: {out}")
+
 
 # ============================================================
 # CHẠY CHÍNH
 # ============================================================
 if __name__ == "__main__":
-    print("=" * 55)
-    print("  Channel Prediction — Evaluation")
-    print(f"  SNR range: {CONFIG['snr_range']} dB")
-    print(f"  Models   : {MODEL_NAMES}")
-    print("=" * 55)
+    print("=" * 60)
+    print("  Channel Prediction — Multi-Seed Evaluation")
+    print(f"  Seeds   : {SEEDS}")
+    print(f"  SNR     : {SNR_RANGE} dB")
+    print("=" * 60)
 
-    # Thu thập kết quả
     results = {v: {} for v in VELOCITIES}
 
     for velocity in VELOCITIES:
-        print(f"\n--- Velocity = {velocity} km/h ---")
-        X_test, y_test = load_test_data(velocity)
-
+        print(f"\n--- v = {velocity} km/h ---")
         for name in MODEL_NAMES:
-            print(f"  Evaluating {name}...", end=' ', flush=True)
-            nmse_list = evaluate_model(name, velocity, X_test, y_test)
-            results[velocity][name] = nmse_list
+            print(f"  {name}...", end=' ', flush=True)
+            mean_v, std_v = evaluate_mean_std(name, velocity)
+            results[velocity][name] = (mean_v, std_v)
+            idxs = [SNR_RANGE.index(s) for s in [0,10,20,30]]
+            vals = [f"{mean_v[i]:.1f}±{std_v[i]:.1f}" for i in idxs]
+            print(f"NMSE(0,10,20,30) = {vals}")
 
-            # In NMSE tại SNR = 0, 10, 20, 30 dB
-            snrs  = CONFIG['snr_range']
-            idxs  = [snrs.index(s) for s in [0, 10, 20, 30]
-                     if s in snrs]
-            vals  = [f"{nmse_list[i]:.1f}" for i in idxs]
-            print(f"NMSE(0,10,20,30dB) = {vals}")
-
-    # Vẽ đồ thị NMSE vs SNR
-    print("\nVẽ đồ thị NMSE vs SNR...")
+    print("\nVẽ NMSE vs SNR...")
     plot_nmse_vs_snr(results)
 
-    # In bảng tổng kết
     print_summary_table(results, snr_target=20)
 
-    # Visualize attention weights
-    print("\nVẽ attention weights...")
-    plot_attention_weights(velocity=300)
+    print("\nVẽ time series (seed=42)...")
+    for v in VELOCITIES:
+        plot_timeseries(velocity=v, snr_db=20, seed=42)
 
-    # Vẽ time series prediction
-    print("\nVẽ time series prediction...")
-    plot_prediction_timeseries(velocity=30)
-    plot_prediction_timeseries(velocity=120)
-    plot_prediction_timeseries(velocity=300)
-    
-    # Lưu kết quả số
-    np.save('results/evaluation_results.npy', results)
-    print("\nSaved: results/evaluation_results.npy")
-    print("\nHoàn tất!")
+    print("\nVẽ attention weights...")
+    plot_attention_weights(velocity=300, seed=42)
+
+    np.save('results/evaluation_multiseed.npy', results)
+    print("\nXong!")
