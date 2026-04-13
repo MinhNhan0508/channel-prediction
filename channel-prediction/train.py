@@ -21,7 +21,7 @@ CONFIG = {
     'lr'         : 5e-4,    
     'patience'   : 20,      
     'hidden_size': 64,
-    'num_layers' : 3,
+    'num_layers' : 2,
     'data_dir'   : 'data',
     'save_dir'   : 'results/checkpoints',
     'velocities' : [30, 120, 300]
@@ -293,9 +293,6 @@ if __name__ == "__main__":
 
         # Train
         for model_name, model in get_all_models(CONFIG).items():
-            if model_name != 'CNN-LSTM-Attention':
-                continue
-            
             history = train_model(
                 model, train_loader, test_loader,
                 CONFIG, model_name, velocity

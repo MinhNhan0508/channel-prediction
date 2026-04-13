@@ -49,7 +49,7 @@ def build_model(name):
     
     if name == 'CNN-LSTM-Attention':
         # Ép cứng num_layers=3 cho riêng model của mình
-        return CNNLSTMAttention(hidden_size=64, num_layers=3,
+        return CNNLSTMAttention(hidden_size=64, num_layers=2,
                                 cnn_channels=32, num_heads=2)
                                 
     return get_baseline(name, h, num_layers_baseline)
