@@ -389,7 +389,6 @@ def show_model_stats():
     for bar, p in zip(bars, params):
         ax.text(p + 500, bar.get_y() + bar.get_height()/2,
                 f'{p:,}', va='center', fontsize=9, color=TEXT_PRI)
-    ax.set_xlabel('Số tham số', fontsize=11)
     ax.set_title('Model Parameters', fontsize=12, color=TEXT_PRI)
     ax.grid(True, alpha=0.3, axis='x')
     ax.invert_yaxis()
@@ -405,7 +404,6 @@ def show_model_stats():
     for at in autotexts:
         at.set_color(DARK_BG)
         at.set_fontweight('bold')
-    ax2.set_title('Phân bổ tham số', fontsize=12, color=TEXT_PRI)
 
     plt.tight_layout()
 
@@ -641,10 +639,6 @@ def build_app():
             with gr.TabItem("🔍  Attention Weights"):
                 gr.Markdown("""
 ### Explainability — Model chú ý vào bước thời gian nào?
-
-Attention Weights cho thấy trong 50 bước lịch sử, model CNN-LSTM-Attention
-**tự học** cần nhìn vào thời điểm nào để dự đoán tốt nhất.
-Đây là điểm khác biệt so với "hộp đen" — model có thể giải thích được.
                 """)
 
                 with gr.Row():
@@ -726,8 +720,8 @@ if __name__ == "__main__":
 
     app = build_app()
     app.launch(
-        share=True,           # Tạo link public để demo
+        share=True,           
         server_port=7860,
         show_error=True,
-        inbrowser=True        # Tự mở browser
+        inbrowser=True       
     )
