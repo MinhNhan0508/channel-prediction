@@ -1,0 +1,9 @@
+﻿Model,Parameters,FLOPs,CPU latency (ms),GPU latency (ms)
+Wiener,200,400,0.013,N/A
+RNN,"12,802",N/A,2.601,0.542
+LSTM,"50,818",N/A,2.058,0.511
+GRU,"38,146",N/A,6.713,0.639
+Transformer,"100,290",N/A,2.181,2.080
+CNN-LSTM,"72,802",N/A,1.779,2.122
+LSTM-Attention,"71,682",N/A,1.621,1.549
+CNN-LSTM-Attention *,"89,250",N/A,6.386,6.618

@@ -5,12 +5,14 @@ import os
 # ============================================================
 # CÁC THAM SỐ HỆ THỐNG
 # ============================================================
-FC = 2.4e9      # Tần số sóng mang: 2.4 GHz
+FC = 2.4e9      # Tần số sóng mang: 2.4 GHz (Wi-Fi 6E lower / 5G n7)
 C  = 3e8        # Tốc độ ánh sáng (m/s)
-FS = 1000       # Tần số lấy mẫu: 1000 Hz
-N  = 50000      # Tổng số mẫu kênh sinh ra
-SEQ_LEN = 50    # Độ dài chuỗi đầu vào LSTM (nhìn 50 bước quá khứ)
-TRAIN_RATIO = 0.8  # 80% train, 20% test
+FS = 10000      # Tần số lấy mẫu: 10 kHz (1 symbol = 0.1 ms)
+N  = 50000      # Tổng số mẫu kênh sinh ra (= 5 giây thực tế ở fs=10kHz)
+SEQ_LEN = 50    # Độ dài chuỗi đầu vào LSTM (nhìn 50 bước quá khứ = 5 ms)
+TRAIN_RATIO = 0.8     # 80% train, 20% test
+BUFFER = SEQ_LEN      # Số sample bỏ qua giữa train và test
+                      # để loại bỏ overlap do sliding window
 N_PATHS = 20    # Số đường truyền trong mô hình Jakes
 
 
@@ -138,18 +140,28 @@ def normalize(X, y):
 def generate_and_save(velocity_kmh, save_dir='data', seed=42):
     os.makedirs(save_dir, exist_ok=True)
 
-    fd = compute_doppler(velocity_kmh)
-    print(f"\n[v = {velocity_kmh:>3} km/h | seed={seed}]  fd = {fd:>7.1f} Hz")
+    fd  = compute_doppler(velocity_kmh)
+    fdT = fd / FS                                    # normalized Doppler
+    print(f"\n[v = {velocity_kmh:>3} km/h | seed={seed}]  "
+          f"fd = {fd:>6.1f} Hz  "
+          f"fdT = {fdT:.4f}  "
+          f"({'coherent' if fdT < 0.01 else 'challenging' if fdT < 0.1 else 'high-mobility'})")
 
     # Sinh kênh với seed cụ thể
     h = generate_rayleigh_jakes(N, fd, seed=seed)
 
     X, y = create_sequences(h, SEQ_LEN)
 
+    # Split với buffer để loại bỏ leak từ sliding window
+    # Train cuối:  X[:split],          y[:split]
+    # Buffer:      X[split:split+B]    (bỏ — chứa overlap với train)
+    # Test:        X[split+B:],        y[split+B:]
     split = int(len(X) * TRAIN_RATIO)
-    X_train, y_train = X[:split], y[:split]
-    X_test,  y_test  = X[split:], y[split:]
+    X_train, y_train = X[:split],            y[:split]
+    X_test,  y_test  = X[split + BUFFER:],   y[split + BUFFER:]
 
+    # Chuẩn hóa: scale = max(|X_train|), áp cho cả train và test
+    # Lý do dùng X_train: tránh leak thông tin test vào normalization
     scale   = np.max(np.abs(X_train))
     X_train = X_train / scale
     y_train = y_train / scale
@@ -164,9 +176,11 @@ def generate_and_save(velocity_kmh, save_dir='data', seed=42):
              h_raw=h,         scale=np.array([scale]),
              velocity=np.array([velocity_kmh]),
              fd=np.array([fd]),
+             fs=np.array([FS]),
+             buffer=np.array([BUFFER]),
              seed=np.array([seed]))
 
-    print(f"  Train: {X_train.shape}  |  Test: {X_test.shape}")
+    print(f"  Train: {X_train.shape}  |  Buffer: {BUFFER}  |  Test: {X_test.shape}")
     print(f"  Saved: {path}")
 
     return {
@@ -179,10 +193,11 @@ def generate_and_save(velocity_kmh, save_dir='data', seed=42):
 # ============================================================
 # HÀM 6: Vẽ đồ thị kênh truyền
 # ============================================================
-def plot_channels(data_dict_list, velocities, n_show=500):
+def plot_channels(data_dict_list, velocities, n_show=5000):
     """
     Vẽ biên độ kênh của các tốc độ khác nhau trên cùng 1 hình.
     Thấy rõ kênh nhanh hơn khi tốc độ tăng.
+    Ở fs=10kHz, n_show=5000 -> 500ms.
     """
     os.makedirs('results', exist_ok=True)
 
@@ -197,12 +212,14 @@ def plot_channels(data_dict_list, velocities, n_show=500):
     for ax, data, v, color in zip(axes, data_dict_list, velocities, colors):
         h    = data['h_raw']
         fd   = data['fd']
-        t_ms = np.arange(n_show) / FS * 1000   # đổi sang ms
+        # Ở fs=10kHz, mỗi sample = 0.1ms; n_show=5000 -> 500ms
+        t_ms = np.arange(n_show) / FS * 1000              # đổi sang ms
 
         ax.plot(t_ms, np.abs(h[:n_show]),
                 color=color, linewidth=0.8, alpha=0.9)
         ax.set_ylabel('|h(t)|')
-        ax.set_title(f'v = {v} km/h  |  fd = {fd:.0f} Hz',
+        ax.set_title(f'v = {v} km/h  |  fd = {fd:.0f} Hz  |  '
+                     f'fdT = {fd/FS:.4f}',
                      fontsize=11)
         ax.grid(True, alpha=0.3)
         ax.set_ylim(bottom=0)
@@ -214,6 +231,7 @@ def plot_channels(data_dict_list, velocities, n_show=500):
     out = 'results/channel_comparison.png'
     plt.savefig(out, dpi=150, bbox_inches='tight')
     plt.show()
+    plt.close()
     print(f"\nPlot saved: {out}")
 
 

@@ -12,6 +12,7 @@ import gradio as gr
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from models.baselines import get_baseline
 from models.proposed  import CNNLSTMAttention
+from models.classical import WienerFilter
 
 # ============================================================
 # CẤU HÌNH
@@ -20,11 +21,13 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 VELOCITIES    = [30, 120, 300]
 VELOCITY_LABELS = {30: "30 km/h — Đô thị", 120: "120 km/h — Cao tốc", 300: "300 km/h — Tàu cao tốc"}
-MODEL_NAMES   = ['RNN', 'LSTM', 'GRU', 'Transformer', 'CNN-LSTM-Attention']
+# Wiener đặt đầu list để hội đồng thấy ngay: "có cả baseline cổ điển"
+MODEL_NAMES   = ['Wiener', 'RNN', 'LSTM', 'GRU', 'Transformer', 'CNN-LSTM-Attention']
 DEMO_SEED     = 42
 SNR_RANGE     = list(range(0, 31, 5))
 
 COLORS = {
+    'Wiener'           : '#7F8C8D',  # xám — baseline cổ điển (đồng nhất với evaluate.py)
     'RNN'              : '#E74C3C',
     'LSTM'             : '#3498DB',
     'GRU'              : "#3F4474",
@@ -69,17 +72,38 @@ _data_cache  = {}
 
 
 def get_model(name, velocity, seed=DEMO_SEED):
+    """
+    Load model từ cache hoặc tạo mới.
+    - NN models: load checkpoint .pth từ results/checkpoints/
+    - Wiener   : fit closed-form từ X_train/y_train trong file .npz
+                 (không có checkpoint vì là linear MMSE giải tích)
+    """
     key = f"{name}_v{velocity}_s{seed}"
-    if key not in _model_cache:
-        model = _build_model(name)
-        path  = os.path.join(CKPT_DIR, f'{name}_v{velocity}kmh_s{seed}.pth')
+    if key in _model_cache:
+        return _model_cache[key]
+
+    # ---- Wiener filter: fit closed-form, không có checkpoint ----
+    if name == 'Wiener':
+        path = os.path.join(DATA_DIR,
+                            f'channel_v{velocity}kmh_s{seed}.npz')
         if not os.path.exists(path):
             return None
-        ckpt = torch.load(path, map_location=DEVICE)
-        model.load_state_dict(ckpt['model_state'])
-        model.to(DEVICE)
-        model.eval()
-        _model_cache[key] = model
+        d = np.load(path)
+        wiener = WienerFilter(seq_len=50, horizon=1, ridge=1e-4)
+        wiener.fit(d['X_train'], d['y_train'])
+        _model_cache[key] = wiener
+        return wiener
+
+    # ---- Neural network: load checkpoint ----
+    model = _build_model(name)
+    path  = os.path.join(CKPT_DIR, f'{name}_v{velocity}kmh_s{seed}.pth')
+    if not os.path.exists(path):
+        return None
+    ckpt = torch.load(path, map_location=DEVICE)
+    model.load_state_dict(ckpt['model_state'])
+    model.to(DEVICE)
+    model.eval()
+    _model_cache[key] = model
     return _model_cache[key]
 
 
@@ -98,6 +122,9 @@ def get_test_data(velocity, seed=DEMO_SEED):
 
 
 def _build_model(name):
+    """Tạo model (chưa load weights / chưa fit)."""
+    if name == 'Wiener':
+        return WienerFilter(seq_len=50, horizon=1, ridge=1e-4)
     if name == 'CNN-LSTM-Attention':
         return CNNLSTMAttention(
             hidden_size=64, num_layers=2,
@@ -177,7 +204,10 @@ def predict_channel(velocity_label, snr_db, n_show, selected_models):
     for ax, name in zip(axes, selected_models):
         model = get_model(name, velocity)
         if model is None:
-            ax.text(0.5, 0.5, f'Chưa có checkpoint\n{name}',
+            # Wiener cần file data; NN cần checkpoint
+            err_msg = (f'Thiếu data\n{name}' if name == 'Wiener'
+                       else f'Chưa có checkpoint\n{name}')
+            ax.text(0.5, 0.5, err_msg,
                     ha='center', va='center', color=TEXT_SEC,
                     transform=ax.transAxes, fontsize=12)
             continue
@@ -355,15 +385,30 @@ def show_attention(velocity_label, sample_idx):
 def show_model_stats():
     rows = []
     for name in MODEL_NAMES:
-        model  = _build_model(name)
-        params = sum(p.numel() for p in model.parameters())
+        # Wiener: cần fit trên 1 (velocity, seed) đại diện để có .W
+        # Lý do: WienerFilter không có .parameters(), chỉ có .num_params()
+        if name == 'Wiener':
+            model = get_model('Wiener', velocity=120, seed=DEMO_SEED)
+            if model is None:
+                # Fallback nếu thiếu file npz: chỉ lấy num_params từ instance chưa fit (=0)
+                model = _build_model('Wiener')
+            params = model.num_params() if model.num_params() > 0 \
+                     else 50 * 2 * 2     # seq_len=50, in=2, out=2 → ước tính
+        else:
+            model  = _build_model(name)
+            params = sum(p.numel() for p in model.parameters())
+
         # Latency estimate
         x_dummy = torch.randn(1, 50, 2)
         try:
-            lat = measure_latency(
-                model.to(DEVICE),
-                x_dummy, n_runs=20
-            )
+            if isinstance(model, WienerFilter):
+                # Wiener chạy CPU, không cần .to(DEVICE)
+                lat = measure_latency(model, x_dummy, n_runs=20)
+            else:
+                lat = measure_latency(
+                    model.to(DEVICE),
+                    x_dummy, n_runs=20
+                )
             lat_str = f"{lat:.2f} ms"
         except Exception:
             lat_str = "N/A"
@@ -376,7 +421,9 @@ def show_model_stats():
             "Kiến trúc"   : _get_arch_desc(name),
         })
 
-    # Vẽ bar chart số params
+    # ----------------------------------------------------------
+    # Vẽ bar chart số params (giữ Wiener — show off "Wiener tí hon")
+    # ----------------------------------------------------------
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
     fig.patch.set_facecolor(DARK_BG)
 
@@ -393,10 +440,20 @@ def show_model_stats():
     ax.grid(True, alpha=0.3, axis='x')
     ax.invert_yaxis()
 
-    # Pie chart phân bổ params
+    # ----------------------------------------------------------
+    # Pie chart — BỎ WIENER (Option A): Wiener=200 params quá nhỏ
+    # so với LSTM ~50k → miếng pie xíu xiu, không đẹp.
+    # Chỉ show phân bổ giữa các model NN.
+    # ----------------------------------------------------------
     ax2 = axes[1]
+    nn_indices = [i for i, n in enumerate(names)
+                  if n.replace(" ★", "") != 'Wiener']
+    pie_names  = [names[i]  for i in nn_indices]
+    pie_params = [params[i] for i in nn_indices]
+    pie_colors = [colors[i] for i in nn_indices]
+
     wedges, texts, autotexts = ax2.pie(
-        params, labels=names, colors=colors,
+        pie_params, labels=pie_names, colors=pie_colors,
         autopct='%1.1f%%', startangle=90,
         pctdistance=0.8,
         textprops={'color': TEXT_PRI, 'fontsize': 9}
@@ -404,6 +461,10 @@ def show_model_stats():
     for at in autotexts:
         at.set_color(DARK_BG)
         at.set_fontweight('bold')
+
+    ax2.set_title('Phân bổ Params (chỉ NN models)\n'
+                  'Wiener = 200 params, tách riêng',
+                  fontsize=11, color=TEXT_PRI, pad=10)
 
     plt.tight_layout()
 
@@ -418,6 +479,7 @@ def show_model_stats():
 
 def _get_arch_desc(name):
     descs = {
+        'Wiener'           : 'Linear MMSE — closed-form (cổ điển)',
         'RNN'              : 'Vanilla RNN, 2 layers',
         'LSTM'             : 'LSTM + gates, 2 layers',
         'GRU'              : 'GRU (lightweight LSTM)',
@@ -589,7 +651,7 @@ def build_app():
                         )
                         models_1 = gr.CheckboxGroup(
                             choices=MODEL_NAMES,
-                            value=['LSTM', 'CNN-LSTM-Attention'],
+                            value=['Wiener', 'LSTM', 'CNN-LSTM-Attention'],
                             label="🤖 Chọn model so sánh"
                         )
                         btn_1 = gr.Button("▶  Dự đoán", variant="primary")
@@ -701,22 +763,27 @@ if __name__ == "__main__":
     print(f"  Device : {DEVICE}")
     print(f"  Models : {MODEL_NAMES}")
     print("=" * 60)
-    print("\nKiểm tra checkpoints...")
+    print("\nKiểm tra checkpoints và data...")
 
     missing = []
     for name in MODEL_NAMES:
         for v in VELOCITIES:
-            path = os.path.join(CKPT_DIR,
-                                f'{name}_v{v}kmh_s{DEMO_SEED}.pth')
+            if name == 'Wiener':
+                # Wiener không có checkpoint, cần file data .npz để fit
+                path = os.path.join(DATA_DIR,
+                                    f'channel_v{v}kmh_s{DEMO_SEED}.npz')
+            else:
+                path = os.path.join(CKPT_DIR,
+                                    f'{name}_v{v}kmh_s{DEMO_SEED}.pth')
             if not os.path.exists(path):
                 missing.append(path)
 
     if missing:
-        print(f"⚠️  Thiếu {len(missing)} checkpoint:")
+        print(f"⚠️  Thiếu {len(missing)} file:")
         for p in missing[:5]:
             print(f"   {p}")
     else:
-        print("✅ Tất cả checkpoints đã sẵn sàng!\n")
+        print("✅ Tất cả checkpoints + data đã sẵn sàng!\n")
 
     app = build_app()
     app.launch(

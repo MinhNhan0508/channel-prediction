@@ -8,23 +8,28 @@ from torch.utils.data import DataLoader, TensorDataset
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from models.baselines import get_baseline
-from models.proposed  import CNNLSTMAttention
+from models.proposed  import (
+    CNNLSTMAttention,
+    CNNLSTMNoAttention,
+    LSTMAttention,
+)
 
 
 # ============================================================
 # CẤU HÌNH
 # ============================================================
 CONFIG = {
-    'epochs'     : 150,
-    'batch_size' : 64,
-    'lr'         : 5e-4,
-    'patience'   : 20,
-    'hidden_size': 64,
-    'num_layers' : 2,
-    'data_dir'   : 'data',
-    'save_dir'   : 'results/checkpoints',
-    'velocities' : [30, 120, 300],
-    'seeds'      : [42, 123, 456],
+    'epochs'         : 150,
+    'batch_size'     : 64,
+    'lr'             : 5e-4,
+    'patience'       : 20,
+    'hidden_size'    : 64,
+    'num_layers'     : 2,
+    'data_dir'       : 'data',
+    'save_dir'       : 'results/checkpoints',
+    'velocities'     : [30, 120, 300],
+    'seeds'          : [42, 123, 456],
+    'skip_existing'  : True,
 }
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -116,8 +121,9 @@ def evaluate(model, loader, criterion, device):
 def train_model(model, train_loader, test_loader,
                 config, model_name, velocity, seed):
 
-    patience = 20 
-    lr       = 5e-4 
+    # Lấy từ config (trước đây bị hardcode trong hàm)
+    patience = config['patience']
+    lr       = config['lr']
 
     model     = model.to(DEVICE)
     criterion = nn.MSELoss()
@@ -178,20 +184,37 @@ def train_model(model, train_loader, test_loader,
 # HÀM 5: Tạo tất cả model
 # ============================================================
 def get_all_models(config):
-    h = config['hidden_size']
+    h          = config['hidden_size']
     num_layers = config['num_layers']
     return {
+        # --- Baseline AI ---
         'RNN'              : get_baseline('RNN',         h, num_layers),
         'LSTM'             : get_baseline('LSTM',        h, num_layers),
         'GRU'              : get_baseline('GRU',         h, num_layers),
         'Transformer'      : get_baseline('Transformer', h, num_layers),
+
+        # --- Ablation variants (mới) ---
+        'CNN-LSTM'         : CNNLSTMNoAttention(
+            hidden_size  = h,
+            num_layers   = num_layers,
+            cnn_channels = 32,
+        ),
+        'LSTM-Attention'   : LSTMAttention(
+            hidden_size  = h,
+            num_layers   = num_layers,
+            num_heads    = 2,
+        ),
+
+        # --- Model đề xuất ---
         'CNN-LSTM-Attention': CNNLSTMAttention(
-            hidden_size  = 64,
+            hidden_size  = h,
             num_layers   = num_layers,
             cnn_channels = 32,
             num_heads    = 2,
         ),
     }
+    # Lưu ý: Wiener filter KHÔNG cần train (closed-form), được fit
+    # trực tiếp trong evaluate.py.
 
 
 # ============================================================
@@ -207,7 +230,11 @@ if __name__ == "__main__":
     print(f"  Device  : {DEVICE}")
     print(f"  Seeds   : {CONFIG['seeds']}")
     print(f"  Epochs  : {CONFIG['epochs']}")
-    print("  Total   : 5 models × 3 velocities × 3 seeds = 45 runs")
+    n_models = len(get_all_models(CONFIG))
+    n_runs   = n_models * len(CONFIG['velocities']) * len(CONFIG['seeds'])
+    print(f"  Total   : {n_models} models × "
+          f"{len(CONFIG['velocities'])} velocities × "
+          f"{len(CONFIG['seeds'])} seeds = {n_runs} runs")
     print("=" * 60)
 
     for seed in CONFIG['seeds']:
@@ -224,10 +251,25 @@ if __name__ == "__main__":
             print(f"  Data: train={n_train}, test={n_test}")
 
             for model_name, model in get_all_models(CONFIG).items():
-                history, best_val = train_model(
-                    model, train_loader, test_loader,
-                    CONFIG, model_name, velocity, seed
+                ckpt_path = os.path.join(
+                    CONFIG['save_dir'],
+                    f'{model_name}_v{velocity}kmh_s{seed}.pth'
                 )
+
+                # Skip nếu đã có checkpoint và skip_existing=True
+                if CONFIG['skip_existing'] and os.path.exists(ckpt_path):
+                    ckpt = torch.load(ckpt_path, map_location='cpu',
+                                      weights_only=True)
+                    best_val = float(ckpt.get('val_loss', float('nan')))
+                    print(f"  [SKIP] {model_name} | v={velocity} | s={seed} | "
+                          f"val={best_val:.6f}  (đã có checkpoint)")
+                    history = {'train_loss': [], 'val_loss': [best_val]}
+                else:
+                    history, best_val = train_model(
+                        model, train_loader, test_loader,
+                        CONFIG, model_name, velocity, seed
+                    )
+
                 key = f"{model_name}_v{velocity}_s{seed}"
                 all_histories[key] = history
 
@@ -245,7 +287,7 @@ if __name__ == "__main__":
           f"{'120 km/h':>14} | {'300 km/h':>14}")
     print("  " + "-" * 67)
 
-    for name in ['RNN', 'LSTM', 'GRU', 'Transformer', 'CNN-LSTM-Attention']:
+    for name in get_all_models(CONFIG).keys():
         row = f"  {name:<22} |"
         for v in [30, 120, 300]:
             vals = best_val_table[name][v]
