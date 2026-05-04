@@ -2,200 +2,190 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# ============================================================
+# THAM SỐ MASSIVE MIMO
+# ============================================================
+N_TX         = 64
+N_RX         = 2
+FEATURE_SIZE = 2 * N_TX * N_RX  # = 256
+
 
 # ============================================================
-# KHỐI 1: CNN — trích xuất đặc trưng cục bộ (giữ nguyên)
+# KHỐI 1: CNN — trích xuất đặc trưng không gian-thời gian
 # ============================================================
 class CNNBlock(nn.Module):
     """
-    CNN 1 chiều trích xuất pattern cục bộ từ chuỗi kênh.
-    Giữ nguyên từ v1 — phần này hoạt động tốt.
+    CNN 1D cho Massive MIMO.
 
-    Thêm residual connection bên trong CNN:
-    output = F.relu(conv2(conv1(x))) + project(x)
-    Giúp gradient chạy thẳng qua, tránh vanishing.
+    Trong SISO, CNN học pattern theo thời gian (temporal pattern).
+    Trong Massive MIMO, CNN còn học thêm tương quan không gian
+    (spatial correlation) giữa các anten vì feature vector
+    chứa thông tin của 64 anten được flatten liên tiếp.
+
+    Anten liền kề nhau trong ULA có tương quan không gian cao
+    → CNN kernel=3 có thể phát hiện tương quan này.
+
+    Residual connection giúp gradient chạy thẳng qua,
+    đặc biệt quan trọng khi input có 128 chiều.
     """
-    def __init__(self, input_size=2, cnn_channels=64, kernel_size=3):
-        super(CNNBlock, self).__init__()
+    def __init__(self, input_size=FEATURE_SIZE,
+                 cnn_channels=64, kernel_size=3):
+        super().__init__()
         pad = kernel_size // 2
 
-        self.conv1 = nn.Conv1d(input_size,   cnn_channels,
+        self.conv1 = nn.Conv1d(input_size, cnn_channels,
                                kernel_size, padding=pad)
-        self.ln1 = nn.LayerNorm(cnn_channels)
+        self.ln1   = nn.LayerNorm(cnn_channels)
         self.conv2 = nn.Conv1d(cnn_channels, cnn_channels,
                                kernel_size, padding=pad)
-        self.ln2 = nn.LayerNorm(cnn_channels)
+        self.ln2   = nn.LayerNorm(cnn_channels)
 
-        # Project input_size → cnn_channels cho residual
-        self.residual_proj = nn.Conv1d(input_size, cnn_channels,
-                                       kernel_size=1)
-        self.dropout = nn.Dropout(0.1)
+        self.res_proj = nn.Conv1d(input_size, cnn_channels,
+                                  kernel_size=1)
+        self.dropout  = nn.Dropout(0.1)
 
     def forward(self, x):
         # x: (batch, seq_len, input_size)
-        x_t = x.transpose(1, 2)             
+        xt = x.transpose(1, 2)  # (batch, input_size, seq_len)
 
         # Main path
-        out = self.conv1(x_t)             
-        out = out.transpose(1, 2)          
-        out = self.ln1(out)                  
-        out = out.transpose(1, 2)            
-        out = F.relu(out)
+        out = self.conv1(xt).transpose(1, 2)
+        out = F.relu(self.ln1(out)).transpose(1, 2)
         out = self.dropout(out)
+        out = self.conv2(out).transpose(1, 2)
+        out = self.ln2(out).transpose(1, 2)
 
-        out = self.conv2(out)                
-        out = out.transpose(1, 2)             
-        out = self.ln2(out)                  
-        out = out.transpose(1, 2)
-        # Residual path
-        res = self.residual_proj(x_t)
-
+        # Residual
+        res = self.res_proj(xt)
         out = F.relu(out + res)
-        return out.transpose(1, 2)             # (batch, seq_len, cnn_channels)
+        return out.transpose(1, 2)  # (batch, seq_len, cnn_channels)
 
 
 # ============================================================
-# KHỐI 2: Multi-Head Attention — thay thế Single-Head
+# KHỐI 2: Spatial-Temporal Attention
 # ============================================================
-class MultiHeadAttentionBlock(nn.Module):
+class SpatialTemporalAttention(nn.Module):
     """
-    Multi-Head Attention đặt SAU LSTM.
+    Multi-Head Attention cho Massive MIMO.
 
-    Tại sao Multi-Head tốt hơn Single-Head (v1)?
-    - Single-Head v1 bị attention collapse: 1 thanh ~0.85, còn lại ~0
-      → model chỉ nhìn 1 bước thời gian, bỏ qua lịch sử
-    - Multi-Head chia hidden state thành nhiều head độc lập:
-      * Head 1: học pattern ngắn hạn (2-3 bước gần)
-      * Head 2: học trend dài hạn (10-20 bước trước)
-      * Head 3: học điểm đột biến bất thường
-      * Head 4: học correlation theo chu kỳ Doppler
-    - Mỗi head tự do học pattern riêng → không bị collapse
-    - Concat output tất cả head → thông tin phong phú hơn
+    Điểm khác biệt quan trọng so với SISO:
+    Trong MIMO, Attention cần học 2 loại tương quan:
+      1. Temporal correlation : bước thời gian nào quan trọng?
+         (giống SISO attention)
+      2. Spatial correlation  : tương quan anten được học qua
+         LSTM và được Attention tổng hợp
 
-    Khác Transformer ở chỗ:
-    - Transformer: Self-Attention thay thế RNN hoàn toàn
-    - Model này: Multi-Head Attention bổ sung SAU LSTM
-      → tận dụng temporal memory của LSTM
-      → AND multi-perspective attention của Transformer
+    Với hidden_size lớn hơn (256 thay vì 64 ở SISO),
+    num_heads cũng tăng (8 thay vì 2) để học đa dạng hơn.
 
-    Args:
-        hidden_size : kích thước hidden state LSTM
-        num_heads   : số attention head (phải chia hết hidden_size)
-        dropout     : tỷ lệ dropout
+    Dùng Global Average Pooling (mean) thay vì chỉ lấy bước cuối
+    → tránh attention collapse (vấn đề đã phát hiện ở SISO).
     """
-    def __init__(self, hidden_size=128, num_heads=4, dropout=0.1):
-        super(MultiHeadAttentionBlock, self).__init__()
-
-        assert hidden_size % num_heads == 0, \
-            f"hidden_size ({hidden_size}) phải chia hết num_heads ({num_heads})"
+    def __init__(self, hidden_size=256, num_heads=8, dropout=0.1):
+        super().__init__()
+        assert hidden_size % num_heads == 0
 
         self.hidden_size = hidden_size
         self.num_heads   = num_heads
         self.head_dim    = hidden_size // num_heads
+        self.scale       = self.head_dim ** -0.5
 
-        # Query, Key, Value projections
         self.W_q = nn.Linear(hidden_size, hidden_size, bias=False)
         self.W_k = nn.Linear(hidden_size, hidden_size, bias=False)
         self.W_v = nn.Linear(hidden_size, hidden_size, bias=False)
-
-        # Output projection
         self.W_o = nn.Linear(hidden_size, hidden_size)
 
         self.dropout    = nn.Dropout(dropout)
         self.layer_norm = nn.LayerNorm(hidden_size)
-        self.scale      = self.head_dim ** -0.5  # 1/sqrt(d_k)
 
     def forward(self, lstm_out):
         """
         Args:
             lstm_out : (batch, seq_len, hidden_size)
-
         Returns:
-            context  : (batch, hidden_size) — vector tổng hợp
-            weights  : (batch, seq_len) — để visualize
+            context     : (batch, hidden_size) — global mean pooling
+            vis_weights : (batch, seq_len) — để visualize
         """
-        batch, seq_len, _ = lstm_out.shape
+        B, T, _ = lstm_out.shape
 
-        # Tính Q, K, V
-        Q = self.W_q(lstm_out)
-        K = self.W_k(lstm_out)
-        V = self.W_v(lstm_out)
+        Q = self.W_q(lstm_out).view(B, T, self.num_heads, self.head_dim).transpose(1,2)
+        K = self.W_k(lstm_out).view(B, T, self.num_heads, self.head_dim).transpose(1,2)
+        V = self.W_v(lstm_out).view(B, T, self.num_heads, self.head_dim).transpose(1,2)
 
-        # Reshape thành nhiều head
-        # (batch, seq_len, hidden) → (batch, num_heads, seq_len, head_dim)
-        Q = Q.view(batch, seq_len, self.num_heads,
-                   self.head_dim).transpose(1, 2)
-        K = K.view(batch, seq_len, self.num_heads,
-                   self.head_dim).transpose(1, 2)
-        V = V.view(batch, seq_len, self.num_heads,
-                   self.head_dim).transpose(1, 2)
-
-        # Scaled Dot-Product Attention
         scores  = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
         weights = F.softmax(scores, dim=-1)
         weights = self.dropout(weights)
 
-        # Weighted sum
         attn_out = torch.matmul(weights, V)
-
-        # Ghép tất cả head lại
-        attn_out = attn_out.transpose(1, 2).contiguous() \
-                           .view(batch, seq_len, self.hidden_size)
-
-        # Output projection
+        attn_out = attn_out.transpose(1,2).contiguous().view(B, T, self.hidden_size)
         attn_out = self.W_o(attn_out)
 
-        # Residual + LayerNorm
         out = self.layer_norm(lstm_out + attn_out)
 
-        # Lấy bước cuối làm context vector
-        context = out[:, -1, :]                          # (batch, hidden)
+        # ✅ Global Average Pooling: tổng hợp toàn bộ chuỗi
+        # Tránh attention collapse (không chỉ lấy bước cuối)
+        context = out.mean(dim=1)  # (batch, hidden_size)
 
-        # Trả weights trung bình các head để visualize
-        vis_weights = weights.mean(dim=1)[:, -1, :]      # (batch, seq_len)
+        # Weights để visualize (trung bình qua tất cả head và query)
+        vis_weights = weights.mean(dim=1).mean(dim=1)  # (batch, seq_len)
 
         return context, vis_weights
 
 
 # ============================================================
-# MODEL CHÍNH v2: CNN + LSTM + Multi-Head Attention + Residual
+# MODEL CHÍNH: CNN + LSTM + Spatial-Temporal Attention
 # ============================================================
 class CNNLSTMAttention(nn.Module):
     """
-    Kiến trúc đề xuất v2.
+    Kiến trúc đề xuất cho Massive MIMO Channel Prediction.
 
-    Thay đổi so với v1:
-    [1] CNN có thêm Residual Connection bên trong
-        → gradient chạy thẳng, tránh vanishing
-    [2] Single-Head → Multi-Head Attention (4 heads)
-        → tránh attention collapse
-    [3] LayerNorm sau Attention
-        → training ổn định hơn
-    [4] hidden_size tăng từ 64 → 128, cnn_channels 32 → 64
-        → capacity lớn hơn cho kênh tốc độ cao
-    [5] Thêm CNN Residual Connection vào FC
-        → thông tin cục bộ từ CNN không bị mất sau LSTM
-    [6] GELU thay ReLU trong FC
-        → tốt hơn cho regression
+    Thay đổi so với phiên bản SISO:
 
-    So với Transformer:
-    - Giữ LSTM để học temporal ordering
-    - Multi-Head Attention bổ sung, không thay thế LSTM
-    - Phù hợp hơn với dataset nhỏ (< 10k mẫu)
+    [1] input_size: 2 → 128 (64 anten × 2)
+        Mỗi bước thời gian chứa thông tin của tất cả 64 anten
+
+    [2] CNN: học spatial correlation giữa các anten
+        + temporal pattern theo thời gian
+
+    [3] hidden_size: 64 → 256
+        Cần nhiều hơn để biểu diễn không gian 64 anten
+
+    [4] num_heads: 2 → 8
+        Nhiều head hơn để học đa chiều spatial-temporal
+
+    [5] output_size: 2 → 128
+        Dự đoán toàn bộ vector kênh 64 anten cùng lúc
+
+    [6] Attention: Global Average Pooling (sửa lỗi collapse SISO)
+
+    [7] FC output: tách thành real và imag riêng
+        → ổn định hơn khi output có 128 chiều
+
+    Kiến trúc tổng thể:
+        Input (batch, 50, 128)
+            ↓ CNN Block (Spatial + Local Temporal)
+        (batch, 50, 64)
+            ↓ LSTM (Long-range Temporal)
+        (batch, 50, 256)
+            ↓ Spatial-Temporal Attention (Global pooling)
+        (batch, 256)  +  CNN residual (batch, 64→256)
+            ↓ Concat → (batch, 512)
+            ↓ FC
+        Output (batch, 128)
     """
     def __init__(self,
-                 input_size   = 2,
-                 cnn_channels = 32,
-                 hidden_size  = 64,
+                 input_size   = FEATURE_SIZE,   # 128
+                 cnn_channels = 64,
+                 hidden_size  = 256,
                  num_layers   = 2,
-                 num_heads    = 2,
-                 output_size  = 2,
+                 num_heads    = 8,
+                 output_size  = FEATURE_SIZE,   # 128
                  kernel_size  = 3,
                  dropout      = 0.1):
-        super(CNNLSTMAttention, self).__init__()
+        super().__init__()
         self.name = 'CNN-LSTM-Attention'
 
-        # Tầng 1: CNN với Residual
+        # Tầng 1: CNN
         self.cnn = CNNBlock(
             input_size   = input_size,
             cnn_channels = cnn_channels,
@@ -211,17 +201,17 @@ class CNNLSTMAttention(nn.Module):
             dropout     = dropout if num_layers > 1 else 0
         )
 
-        # Tầng 3: Multi-Head Attention
-        self.attention = MultiHeadAttentionBlock(
+        # Tầng 3: Spatial-Temporal Attention
+        self.attention = SpatialTemporalAttention(
             hidden_size = hidden_size,
             num_heads   = num_heads,
             dropout     = dropout
         )
 
-        # Residual từ CNN vào FC
-        self.cnn_residual_proj = nn.Linear(cnn_channels, hidden_size)
+        # Residual từ CNN (bước cuối) vào FC
+        self.cnn_proj = nn.Linear(cnn_channels, hidden_size)
 
-        # Tầng 4: FC
+        # Tầng 4: FC — output 128 chiều (64 anten × 2)
         self.fc = nn.Sequential(
             nn.LayerNorm(hidden_size * 2),
             nn.Linear(hidden_size * 2, hidden_size),
@@ -244,33 +234,33 @@ class CNNLSTMAttention(nn.Module):
     def forward(self, x):
         """
         Args:
-            x : (batch, seq_len, 2)
+            x : (batch, seq_len, 128)  ← 64 anten × 2 (real+imag)
 
         Returns:
-            out     : (batch, 2)
-            weights : (batch, seq_len)
+            out     : (batch, 128)     ← dự đoán kênh bước tiếp theo
+            weights : (batch, seq_len) ← attention weights để visualize
         """
-        # Tầng 1: CNN
-        cnn_out = self.cnn(x)                        # (batch, seq_len, 64)
+        # CNN: trích xuất spatial + local temporal features
+        cnn_out = self.cnn(x)                     # (B, seq_len, 64)
 
-        # Tầng 2: LSTM
-        lstm_out, _ = self.lstm(cnn_out)             # (batch, seq_len, 128)
+        # LSTM: học long-range temporal dependency
+        lstm_out, _ = self.lstm(cnn_out)           # (B, seq_len, 256)
 
-        # Tầng 3: Multi-Head Attention
-        context, weights = self.attention(lstm_out)  # (batch, 128)
+        # Spatial-Temporal Attention: global pooling toàn chuỗi
+        context, weights = self.attention(lstm_out) # (B, 256)
 
-        # Residual từ CNN (bước cuối)
-        cnn_last = cnn_out[:, -1, :]                 # (batch, 64)
-        cnn_res  = self.cnn_residual_proj(cnn_last)  # (batch, 128)
+        # CNN residual: thông tin cục bộ không bị mất sau LSTM
+        cnn_last = cnn_out[:, -1, :]               # (B, 64)
+        cnn_res  = self.cnn_proj(cnn_last)         # (B, 256)
 
-        # FC
-        combined = torch.cat([context, cnn_res], dim=1)  # (batch, 256)
-        out      = self.fc(combined)                      # (batch, 2)
+        # Concat và dự đoán
+        combined = torch.cat([context, cnn_res], dim=1)  # (B, 512)
+        out      = self.fc(combined)                      # (B, 128)
 
         return out, weights
 
     def predict(self, x):
-        """Interface cho train.py và evaluate.py."""
+        """Interface đơn giản cho train/evaluate."""
         out, _ = self.forward(x)
         return out
 
@@ -279,31 +269,34 @@ class CNNLSTMAttention(nn.Module):
 # QUICK TEST
 # ============================================================
 if __name__ == "__main__":
-    batch   = 32
-    seq_len = 50
-    x       = torch.randn(batch, seq_len, 2)
+    B, T, F = 16, 50, FEATURE_SIZE  # F=128
+    x = torch.randn(B, T, F)
 
     model        = CNNLSTMAttention()
     out, weights = model(x)
-    total_params = sum(p.numel() for p in model.parameters())
+    params       = sum(p.numel() for p in model.parameters())
 
-    print("=" * 60)
-    print("  CNN-LSTM-Attention v2 (Multi-Head + Residual)")
-    print("=" * 60)
-    print(f"  Input        : {x.shape}")
-    print(f"  Output       : {out.shape}")
-    print(f"  Weights      : {weights.shape}")
-    print(f"  Total params : {total_params:,}")
+    print("=" * 65)
+    print("  CNN-LSTM-Attention — Massive MIMO Version")
+    print(f"  N_TX={N_TX}, N_RX={N_RX}, Feature={F}")
+    print("=" * 65)
+    print(f"  Input   : {x.shape}")
+    print(f"  Output  : {out.shape}   ← 64 anten × 2 (real+imag)")
+    print(f"  Weights : {weights.shape}")
+    print(f"  Params  : {params:,}")
     print()
 
     w_max = weights[0].max().item()
     w_std = weights[0].std().item()
-    w_sum = weights[0].sum().item()
-    print(f"  Weight sum : {w_sum:.4f}  ")
-    print(f"  Weight max : {w_max:.4f}  ")
-    print(f"  Weight std : {w_std:.4f}  ")
+    print(f"  Weight max : {w_max:.4f}  (phải < 0.15 để không collapse)")
+    print(f"  Weight std : {w_std:.4f}  (càng cao càng phân biệt tốt)")
+    print(f"  NaN output : {torch.isnan(out).any().item()}")
     print()
-
-    has_nan = torch.isnan(out).any().item()
-    print(f"  NaN output : {has_nan} ")
+    print("  Kiến trúc:")
+    print(f"    CNN Block          : {F} → 64 channels, kernel=3")
+    print(f"    LSTM               : 64 → 256, layers=2")
+    print(f"    Spatial-Temp Attn  : 8 heads × 32 dim (global pooling)")
+    print(f"    CNN Residual       : 64 → 256")
+    print(f"    FC                 : 512 → 256 → {F}")
     print()
+    print("  Model OK!")

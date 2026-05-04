@@ -3,250 +3,330 @@ import matplotlib.pyplot as plt
 import os
 
 # ============================================================
-# CÁC THAM SỐ HỆ THỐNG
+# THAM SỐ HỆ THỐNG MASSIVE MIMO
 # ============================================================
-FC = 2.4e9      # Tần số sóng mang: 2.4 GHz
-C  = 3e8        # Tốc độ ánh sáng (m/s)
-FS = 1000       # Tần số lấy mẫu: 1000 Hz
-N  = 50000      # Tổng số mẫu kênh sinh ra
-SEQ_LEN = 50    # Độ dài chuỗi đầu vào LSTM (nhìn 50 bước quá khứ)
-TRAIN_RATIO = 0.8  # 80% train, 20% test
-N_PATHS = 20    # Số đường truyền trong mô hình Jakes
+FC          = 2.4e9     # Tần số sóng mang: 2.4 GHz
+C           = 3e8       # Tốc độ ánh sáng (m/s)
+FS          = 1000      # Tần số lấy mẫu (Hz)
+N           = 50000     # Tổng số mẫu thời gian
+SEQ_LEN     = 50        # Nhìn 50 bước quá khứ
+TRAIN_RATIO = 0.8
+
+# ── Thông số Massive MIMO ──────────────────────────────────
+N_TX     = 64   # Số anten BS (Base Station) — đây là "Massive"
+N_RX     = 2    # Số anten UE (User Equipment) — uplink đơn giản
+N_PATHS  = 10   # Số đường truyền đa đường (multipath)
+D_LAMBDA = 0.5  # Khoảng cách anten / bước sóng (half-wavelength)
+
+# Kết quả:
+#   Kênh h(t) ∈ ℂ^(N_RX × N_TX) = ℂ^(64 × 64)
+#   Mỗi bước thời gian có 64 số phức = 128 features (real + imag)
+#   Input model: (seq_len, 128)
+#   Output model: (128,)
 
 
 # ============================================================
-# HÀM 1: Tính Doppler frequency từ tốc độ di chuyển
+# HÀM 1: Tính Doppler frequency
 # ============================================================
 def compute_doppler(velocity_kmh):
-    """
-    Tính tần số Doppler fd từ tốc độ xe/tàu.
-
-    Công thức: fd = v * fc / c
-      - v  : tốc độ (m/s)
-      - fc : tần số sóng mang (Hz)
-      - c  : tốc độ ánh sáng (m/s)
-
-    Ví dụ: 300 km/h, fc = 2.4 GHz -> fd ≈ 667 Hz
-    fd càng lớn -> kênh thay đổi càng nhanh -> khó dự đoán hơn
-    """
-    v_ms = velocity_kmh / 3.6       # đổi km/h sang m/s
-    fd   = v_ms * FC / C
-    return fd
+    v_ms = velocity_kmh / 3.6
+    return v_ms * FC / C
 
 
 # ============================================================
-# HÀM 2: Sinh kênh Rayleigh dùng mô hình Jakes
+# HÀM 2: Tính steering vector của ULA
 # ============================================================
-def generate_rayleigh_jakes(N, fd, fs=FS, n_paths=N_PATHS, seed=42):
+def steering_vector(theta, n_antennas, d_lambda=D_LAMBDA):
     """
-    Sinh chuỗi kênh truyền Rayleigh time-varying dùng mô hình Jakes.
+    Tính array steering vector cho ULA (Uniform Linear Array).
 
-    Mô hình Jakes mô phỏng môi trường tán xạ đa đường (multipath):
-    - Có n_paths đường truyền độc lập
-    - Mỗi đường có góc đến (AoA) ngẫu nhiên -> Doppler shift khác nhau
-    - Tổng hợp lại thành kênh phức h(t)
+    Khi tín hiệu đến từ góc theta, mỗi anten nhận tín hiệu
+    với pha khác nhau tùy vị trí trong mảng:
+
+        a(theta) = [1, e^(j*2π*d*sin(θ)), ..., e^(j*2π*(N-1)*d*sin(θ))]
+
+    Đây là đặc trưng quan trọng nhất của Massive MIMO so với SISO:
+    - SISO: không có khái niệm steering vector
+    - MIMO: mỗi đường sóng có steering vector riêng
+    - Model AI phải học cả thông tin không gian (spatial) lẫn thời gian
 
     Args:
-        N       : số mẫu cần sinh
-        fd      : Doppler frequency (Hz)
-        fs      : tần số lấy mẫu (Hz)
-        n_paths : số đường truyền
-        seed    : random seed để tái lập kết quả
+        theta      : góc đến (radian)
+        n_antennas : số phần tử anten
+        d_lambda   : khoảng cách anten / bước sóng
 
     Returns:
-        h : mảng complex shape (N,) - hệ số kênh truyền
+        a : steering vector shape (n_antennas,) dtype complex
     """
-    if seed is not None:
-        np.random.seed(seed)
-
-    t = np.arange(N) / fs           # trục thời gian (giây)
-    h = np.zeros(N, dtype=complex)
-
-    for _ in range(n_paths):
-        alpha = np.random.uniform(0, 2 * np.pi)   # góc đến ngẫu nhiên
-        phi   = np.random.uniform(0, 2 * np.pi)   # pha ngẫu nhiên
-
-        # Doppler shift của đường này: fd * cos(alpha)
-        f_d_n = fd * np.cos(alpha)
-
-        # Cộng dồn đóng góp của đường này vào kênh tổng
-        h += np.exp(1j * (2 * np.pi * f_d_n * t + phi))
-
-    # Chuẩn hóa công suất trung bình = 1
-    h /= np.sqrt(n_paths)
-    return h
+    n = np.arange(n_antennas)
+    phase = 2 * np.pi * d_lambda * np.sin(theta) * n
+    return np.exp(1j * phase)
 
 
 # ============================================================
-# HÀM 3: Tạo cặp (X, y) dạng chuỗi trượt cho LSTM
+# HÀM 3: Sinh kênh Massive MIMO theo mô hình GSCM
 # ============================================================
-def create_sequences(h, seq_len=SEQ_LEN):
+def generate_mimo_channel(n_samples, fd, n_tx=N_TX, n_rx=N_RX,
+                           n_paths=N_PATHS, fs=FS, seed=42):
     """
-    Chuyển chuỗi kênh h(t) thành các cặp (input, output) cho LSTM.
+    Sinh kênh Massive MIMO time-varying dùng mô hình GSCM
+    (Geometry-based Stochastic Channel Model).
 
-    Sliding window: dùng seq_len bước quá khứ để dự đoán bước tiếp theo.
+    Mô hình:
+        H(t) = (1/sqrt(L)) * Σ_l  alpha_l(t) * a_r(phi_l) * a_t(theta_l)^H
 
-    Ví dụ seq_len = 3:
-      Input:  [h(0), h(1), h(2)]  -> Output: h(3)
-      Input:  [h(1), h(2), h(3)]  -> Output: h(4)
-      ...
+    Trong đó:
+        - L          : số đường truyền (paths)
+        - alpha_l(t) : hệ số fading phức của đường thứ l (thay đổi theo t)
+        - theta_l    : góc phát (AoD) từ BS
+        - phi_l      : góc thu (AoA) tại UE
+        - a_t, a_r   : steering vector tại TX và RX
 
-    Vì kênh là số phức, tách thành 2 kênh real và imaginary:
-      -> X shape: (num_samples, seq_len, 2)
-      -> y shape: (num_samples, 2)
+    Khác với SISO:
+        - SISO : h(t) là 1 số phức
+        - MIMO : H(t) là ma trận (n_rx × n_tx) số phức
+        - Phần không gian (steering vectors) được cố định
+        - Phần thời gian (alpha_l) thay đổi theo Doppler
 
     Args:
-        h       : chuỗi kênh phức shape (N,)
+        n_samples : số mẫu thời gian cần sinh
+        fd        : tần số Doppler cực đại (Hz)
+        n_tx      : số anten BS
+        n_rx      : số anten UE
+        n_paths   : số đường truyền
+        fs        : tần số lấy mẫu
+        seed      : random seed
+
+    Returns:
+        H : kênh MIMO shape (n_samples, n_rx, n_tx) dtype complex
+    """
+    rng = np.random.default_rng(seed)
+    t   = np.arange(n_samples) / fs
+
+    # Sinh tham số không gian cố định cho mỗi đường
+    theta_l = rng.uniform(-np.pi/2, np.pi/2, n_paths)  # AoD tại BS
+    phi_l   = rng.uniform(-np.pi/2, np.pi/2, n_paths)  # AoA tại UE
+    phase0  = rng.uniform(0, 2*np.pi, n_paths)          # pha ban đầu
+    doppler_angle = rng.uniform(0, 2*np.pi, n_paths)    # góc Doppler
+
+    # Tính steering vectors (cố định theo thời gian)
+    a_tx = np.array([steering_vector(th, n_tx) for th in theta_l])
+    # a_tx shape: (n_paths, n_tx)
+    a_rx = np.array([steering_vector(ph, n_rx) for ph in phi_l])
+    # a_rx shape: (n_paths, n_rx)
+
+    # Khởi tạo ma trận kênh
+    H = np.zeros((n_samples, n_rx, n_tx), dtype=complex)
+
+    # Tổng hợp đóng góp của từng đường
+    for l in range(n_paths):
+        # Hệ số fading thay đổi theo thời gian (Doppler)
+        f_doppler_l = fd * np.cos(doppler_angle[l])
+        alpha_l     = np.exp(1j * (2*np.pi * f_doppler_l * t + phase0[l]))
+        # alpha_l shape: (n_samples,)
+
+        # Ma trận kênh đóng góp của đường l
+        # outer product: a_rx[l] × a_tx[l]^H
+        G_l = np.outer(a_rx[l], np.conj(a_tx[l]))
+        # G_l shape: (n_rx, n_tx)
+
+        # Tích lũy: H(t) += alpha_l(t) * G_l
+        H += alpha_l[:, np.newaxis, np.newaxis] * G_l[np.newaxis, :, :]
+
+    # Chuẩn hóa công suất
+    H /= np.sqrt(n_paths)
+    return H
+
+
+# ============================================================
+# HÀM 4: Chuyển kênh MIMO thành chuỗi sliding window
+# ============================================================
+def create_sequences(H, seq_len=SEQ_LEN):
+    """
+    Chuyển chuỗi kênh MIMO H(t) thành cặp (input, output) cho model.
+
+    SISO: mỗi bước có 2 features (real + imag của 1 số phức)
+    MIMO: mỗi bước có 2*n_rx*n_tx features
+
+    Với N_TX=64, N_RX=1:
+        Mỗi bước = 128 features (real part 64 + imag part 64)
+
+    Flatten H(t): (n_rx, n_tx) → (n_rx*n_tx,) → tách real/imag → (2*n_rx*n_tx,)
+
+    X shape: (n_samples, seq_len, 2*n_rx*n_tx)  ← input chuỗi
+    y shape: (n_samples, 2*n_rx*n_tx)           ← output bước tiếp theo
+
+    Args:
+        H       : kênh MIMO shape (N, n_rx, n_tx) dtype complex
         seq_len : độ dài cửa sổ nhìn về quá khứ
 
     Returns:
-        X : input sequences
-        y : target values
+        X, y : numpy arrays float32
     """
-    # Tách real và imaginary
-    h_ri = np.stack([np.real(h), np.imag(h)], axis=1)  # (N, 2)
+    n_samples, n_rx, n_tx = H.shape
+    feature_size = 2 * n_rx * n_tx  # real + imag
+
+    # Flatten và tách real/imag: (N, n_rx*n_tx) → (N, 2*n_rx*n_tx)
+    H_flat = H.reshape(n_samples, -1)          # (N, n_rx*n_tx)
+    H_ri   = np.concatenate([
+        np.real(H_flat),
+        np.imag(H_flat)
+    ], axis=1)                                  # (N, 2*n_rx*n_tx)
 
     X, y = [], []
-    for i in range(len(h_ri) - seq_len):
-        X.append(h_ri[i : i + seq_len])    # cửa sổ seq_len bước
-        y.append(h_ri[i + seq_len])        # bước tiếp theo cần dự đoán
+    for i in range(n_samples - seq_len):
+        X.append(H_ri[i : i + seq_len])         # (seq_len, feature_size)
+        y.append(H_ri[i + seq_len])             # (feature_size,)
 
-    return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32)
-
-
-# ============================================================
-# HÀM 4: Chuẩn hóa data về [-1, 1]
-# ============================================================
-def normalize(X, y):
-    """
-    Chuẩn hóa data để training ổn định hơn.
-    Dùng max-scaling: chia cho giá trị tuyệt đối lớn nhất.
-
-    Returns:
-        X_norm, y_norm : data đã chuẩn hóa
-        scale          : hệ số scale, dùng để khôi phục lại giá trị gốc
-    """
-    scale  = np.max(np.abs(X))
-    X_norm = X / scale
-    y_norm = y / scale
-    return X_norm, y_norm, scale
+    return (np.array(X, dtype=np.float32),
+            np.array(y, dtype=np.float32))
 
 
 # ============================================================
-# HÀM 5: Pipeline đầy đủ - sinh, xử lý và lưu data
+# HÀM 5: Pipeline sinh và lưu dataset
 # ============================================================
-def generate_and_save(velocity_kmh, save_dir='data', seed=42):
+def generate_and_save(velocity_kmh, seed=42, save_dir='data'):
     os.makedirs(save_dir, exist_ok=True)
 
     fd = compute_doppler(velocity_kmh)
-    print(f"\n[v = {velocity_kmh:>3} km/h | seed={seed}]  fd = {fd:>7.1f} Hz")
+    print(f"\n[v={velocity_kmh} km/h | seed={seed} | "
+          f"N_TX={N_TX} | N_RX={N_RX}]  fd={fd:.1f} Hz")
 
-    # Sinh kênh với seed cụ thể
-    h = generate_rayleigh_jakes(N, fd, seed=seed)
+    # Sinh kênh MIMO
+    H = generate_mimo_channel(N, fd, N_TX, N_RX, N_PATHS, FS, seed)
+    print(f"  H shape: {H.shape}  "
+          f"(samples × n_rx × n_tx)")
 
-    X, y = create_sequences(h, SEQ_LEN)
+    # Tạo sequences
+    X, y = create_sequences(H, SEQ_LEN)
+    print(f"  X shape: {X.shape}  "
+          f"({SEQ_LEN} bước × {X.shape[2]} features)")
 
-    split = int(len(X) * TRAIN_RATIO)
-    X_train, y_train = X[:split], y[:split]
-    X_test,  y_test  = X[split:], y[split:]
+    # Chia train/test
+    split   = int(len(X) * TRAIN_RATIO)
+    X_train = X[:split]
+    y_train = y[:split]
+    X_test  = X[split:]
+    y_test  = y[split:]
 
+    # Chuẩn hóa
     scale   = np.max(np.abs(X_train))
     X_train = X_train / scale
     y_train = y_train / scale
     X_test  = X_test  / scale
     y_test  = y_test  / scale
 
-    # Tên file kèm seed
-    path = os.path.join(save_dir, f'channel_v{velocity_kmh}kmh_s{seed}.npz')
+    # Lưu file
+    path = os.path.join(
+        save_dir,
+        f'mimo_v{velocity_kmh}kmh_s{seed}.npz'
+    )
     np.savez(path,
-             X_train=X_train, y_train=y_train,
-             X_test=X_test,   y_test=y_test,
-             h_raw=h,         scale=np.array([scale]),
-             velocity=np.array([velocity_kmh]),
-             fd=np.array([fd]),
-             seed=np.array([seed]))
+             X_train   = X_train,
+             y_train   = y_train,
+             X_test    = X_test,
+             y_test    = y_test,
+             H_raw     = H,
+             scale     = np.array([scale]),
+             velocity  = np.array([velocity_kmh]),
+             fd        = np.array([fd]),
+             seed      = np.array([seed]),
+             n_tx      = np.array([N_TX]),
+             n_rx      = np.array([N_RX]))
 
-    print(f"  Train: {X_train.shape}  |  Test: {X_test.shape}")
+    print(f"  Train: {X_train.shape} | Test: {X_test.shape}")
     print(f"  Saved: {path}")
 
     return {
         'X_train': X_train, 'y_train': y_train,
-        'X_test':  X_test,  'y_test':  y_test,
-        'h_raw':   h,       'scale':   scale,
-        'fd':      fd
+        'X_test' : X_test,  'y_test' : y_test,
+        'H_raw'  : H,       'scale'  : scale,
+        'fd'     : fd
     }
 
-# ============================================================
-# HÀM 6: Vẽ đồ thị kênh truyền
-# ============================================================
-def plot_channels(data_dict_list, velocities, n_show=500):
-    """
-    Vẽ biên độ kênh của các tốc độ khác nhau trên cùng 1 hình.
-    Thấy rõ kênh nhanh hơn khi tốc độ tăng.
-    """
-    os.makedirs('results', exist_ok=True)
 
+# ============================================================
+# HÀM 6: Vẽ biên độ kênh (anten 0)
+# ============================================================
+def plot_channels(data_list, velocities, n_show=500):
+    os.makedirs('results', exist_ok=True)
     fig, axes = plt.subplots(len(velocities), 1,
-                              figsize=(12, 3 * len(velocities)),
+                              figsize=(12, 3*len(velocities)),
                               sharex=True)
     if len(velocities) == 1:
         axes = [axes]
 
     colors = ['steelblue', 'darkorange', 'crimson']
+    t_ms   = np.arange(n_show) / FS * 1000
 
-    for ax, data, v, color in zip(axes, data_dict_list, velocities, colors):
-        h    = data['h_raw']
-        fd   = data['fd']
-        t_ms = np.arange(n_show) / FS * 1000   # đổi sang ms
+    for ax, data, v, color in zip(axes, data_list, velocities, colors):
+        # Lấy kênh của anten thứ 0 (đại diện)
+        h0 = data['H_raw'][:n_show, 0, 0]
+        fd = data['fd']
 
-        ax.plot(t_ms, np.abs(h[:n_show]),
-                color=color, linewidth=0.8, alpha=0.9)
+        ax.plot(t_ms, np.abs(h0),
+                color=color, linewidth=0.8, alpha=0.9,
+                label='Anten 0')
+
+        # Vẽ thêm vài anten để thấy sự khác nhau
+        for ant in [1, 5, 10]:
+            if ant < N_TX:
+                h_ant = data['H_raw'][:n_show, 0, ant]
+                ax.plot(t_ms, np.abs(h_ant),
+                        linewidth=0.5, alpha=0.4)
+
         ax.set_ylabel('|h(t)|')
-        ax.set_title(f'v = {v} km/h  |  fd = {fd:.0f} Hz',
-                     fontsize=11)
+        ax.set_title(
+            f'v={v} km/h | fd={fd:.0f} Hz | '
+            f'{N_TX} anten BS (hiển thị anten 0, 1, 5, 10)',
+            fontsize=10
+        )
         ax.grid(True, alpha=0.3)
-        ax.set_ylim(bottom=0)
+        ax.legend(fontsize=8)
 
     axes[-1].set_xlabel('Thời gian (ms)')
-    plt.suptitle('Kênh Rayleigh Fading - So sánh các tốc độ', fontsize=13)
+    plt.suptitle(
+        f'Kênh Massive MIMO Rayleigh Fading '
+        f'({N_TX}×{N_RX}, {N_PATHS} paths)',
+        fontsize=13
+    )
     plt.tight_layout()
-
-    out = 'results/channel_comparison.png'
+    out = 'results/mimo_channel_comparison.png'
     plt.savefig(out, dpi=150, bbox_inches='tight')
     plt.show()
-    print(f"\nPlot saved: {out}")
+    print(f"Saved: {out}")
 
 
 # ============================================================
 # CHẠY CHÍNH
 # ============================================================
 if __name__ == "__main__":
-    print("=" * 55)
-    print("  Rayleigh Fading Channel Data Generator")
-    print(f"  N={N} samples | seq_len={SEQ_LEN} | fs={FS} Hz")
-    print("  Seeds: 42, 123, 456 (3 channel realizations)")
-    print("=" * 55)
+    print("=" * 60)
+    print("  Massive MIMO Channel Data Generator")
+    print(f"  N_TX={N_TX} (BS antennas) | N_RX={N_RX} (UE antennas)")
+    print(f"  N={N} samples | SEQ_LEN={SEQ_LEN} | N_PATHS={N_PATHS}")
+    print(f"  Feature size per step = {2*N_TX*N_RX} (real+imag × N_TX)")
+    print("=" * 60)
 
     velocities = [30, 120, 300]
     seeds      = [42, 123, 456]
 
     for seed in seeds:
-        print(f"\n{'='*55}")
+        print(f"\n{'='*60}")
         print(f"  Seed = {seed}")
-        print(f"{'='*55}")
-        results_list = []
+        print(f"{'='*60}")
         for v in velocities:
-            data = generate_and_save(v, seed=seed)
-            results_list.append(data)
+            generate_and_save(v, seed=seed)
 
-    # Vẽ đồ thị cho seed=42 làm đại diện
-    print("\nVẽ đồ thị kênh cho seed=42...")
-    results_seed42 = []
+    # Vẽ đồ thị seed=42
+    print("\nVẽ đồ thị kênh (seed=42)...")
+    data_list = []
     for v in velocities:
-        path = os.path.join('data', f'channel_v{v}kmh_s42.npz')
-        d    = np.load(path)
-        results_seed42.append({
-            'h_raw': d['h_raw'],
+        d = np.load(f'data/mimo_v{v}kmh_s42.npz', allow_pickle=True)
+        data_list.append({
+            'H_raw': d['H_raw'],
             'fd'   : float(d['fd'][0])
         })
-    plot_channels(results_seed42, velocities)
+    plot_channels(data_list, velocities)
+
+    print("\nXong! Kiểm tra thư mục data/")

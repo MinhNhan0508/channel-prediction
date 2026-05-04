@@ -2,242 +2,192 @@ import torch
 import torch.nn as nn
 import math
 
+# ============================================================
+# THAM SỐ MASSIVE MIMO
+# ============================================================
+N_TX         = 64
+N_RX         = 2
+FEATURE_SIZE = 2 * N_TX * N_RX  # = 256
+
 
 # ============================================================
-# MODEL 1: RNN (đơn giản nhất, dùng làm lower bound)
+# MODEL 1: RNN Baseline
 # ============================================================
 class RNNModel(nn.Module):
     """
-    Vanilla RNN - model đơn giản nhất.
-    Thường cho kết quả kém nhất do vanishing gradient.
-    Dùng làm lower bound để so sánh.
+    Vanilla RNN cho Massive MIMO channel prediction.
 
-    Args:
-        input_size  : số features mỗi bước thời gian (2: real + imag)
-        hidden_size : số neurons trong hidden layer
-        num_layers  : số lớp RNN chồng nhau
-        output_size : số output (2: real + imag)
+    SISO → MIMO thay đổi:
+        input_size : 2 → 128  (real+imag của 64 anten)
+        output_size: 2 → 128
     """
-    def __init__(self, input_size=2, hidden_size=64,
-                 num_layers=2, output_size=2):
-        super(RNNModel, self).__init__()
+    def __init__(self, input_size=FEATURE_SIZE, hidden_size=128,
+                 num_layers=2, output_size=FEATURE_SIZE):
+        super().__init__()
         self.name = 'RNN'
-
-        self.rnn = nn.RNN(
-            input_size  = input_size,
-            hidden_size = hidden_size,
-            num_layers  = num_layers,
-            batch_first = True,      # input shape: (batch, seq, feature)
-            dropout     = 0.1 if num_layers > 1 else 0
-        )
-        self.fc = nn.Linear(hidden_size, output_size)
+        self.rnn  = nn.RNN(input_size, hidden_size, num_layers,
+                           batch_first=True,
+                           dropout=0.1 if num_layers > 1 else 0)
+        self.fc   = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        # x: (batch, seq_len, 2)
-        out, _ = self.rnn(x)         # out: (batch, seq_len, hidden)
-        out = out[:, -1, :]          # lấy bước cuối: (batch, hidden)
-        out = self.fc(out)           # (batch, 2)
-        return out
+        out, _ = self.rnn(x)
+        return self.fc(out[:, -1, :])
 
 
 # ============================================================
-# MODEL 2: LSTM (baseline chính)
+# MODEL 2: LSTM Baseline
 # ============================================================
 class LSTMModel(nn.Module):
     """
-    LSTM - cải thiện RNN nhờ cơ chế forget/input/output gate.
-    Đây là baseline quan trọng nhất để so sánh với model đề xuất.
+    LSTM cho Massive MIMO channel prediction.
+    Baseline quan trọng nhất để so sánh với CNN-LSTM-Attention.
 
-    Điểm khác RNN: có cell state riêng giúp nhớ thông tin dài hạn tốt hơn.
+    Thách thức MIMO: output 128 chiều thay vì 2 chiều như SISO
+    → LSTM phải học đồng thời 64 hệ số kênh phức
     """
-    def __init__(self, input_size=2, hidden_size=64,
-                 num_layers=2, output_size=2):
-        super(LSTMModel, self).__init__()
-        self.name = 'LSTM'
-
-        self.lstm = nn.LSTM(
-            input_size  = input_size,
-            hidden_size = hidden_size,
-            num_layers  = num_layers,
-            batch_first = True,
-            dropout     = 0.1 if num_layers > 1 else 0
-        )
-        self.fc = nn.Linear(hidden_size, output_size)
+    def __init__(self, input_size=FEATURE_SIZE, hidden_size=128,
+                 num_layers=2, output_size=FEATURE_SIZE):
+        super().__init__()
+        self.name  = 'LSTM'
+        self.lstm  = nn.LSTM(input_size, hidden_size, num_layers,
+                             batch_first=True,
+                             dropout=0.1 if num_layers > 1 else 0)
+        self.fc    = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        # x: (batch, seq_len, 2)
-        out, _ = self.lstm(x)        # out: (batch, seq_len, hidden)
-        out = out[:, -1, :]          # lấy bước cuối: (batch, hidden)
-        out = self.fc(out)           # (batch, 2)
-        return out
+        out, _ = self.lstm(x)
+        return self.fc(out[:, -1, :])
 
 
 # ============================================================
-# MODEL 3: GRU (nhẹ hơn LSTM, thường nhanh hơn)
+# MODEL 3: GRU Baseline
 # ============================================================
 class GRUModel(nn.Module):
     """
-    GRU - phiên bản đơn giản hóa của LSTM.
-    Ít parameters hơn LSTM, training nhanh hơn,
-    nhưng thường accuracy tương đương hoặc chỉ kém một chút.
-
-    Phù hợp khi cần deploy lên thiết bị có tài nguyên hạn chế (edge).
+    GRU cho Massive MIMO.
+    Nhẹ hơn LSTM, phù hợp deploy thiết bị hạn chế tài nguyên.
     """
-    def __init__(self, input_size=2, hidden_size=64,
-                 num_layers=2, output_size=2):
-        super(GRUModel, self).__init__()
+    def __init__(self, input_size=FEATURE_SIZE, hidden_size=128,
+                 num_layers=2, output_size=FEATURE_SIZE):
+        super().__init__()
         self.name = 'GRU'
-
-        self.gru = nn.GRU(
-            input_size  = input_size,
-            hidden_size = hidden_size,
-            num_layers  = num_layers,
-            batch_first = True,
-            dropout     = 0.1 if num_layers > 1 else 0
-        )
-        self.fc = nn.Linear(hidden_size, output_size)
+        self.gru  = nn.GRU(input_size, hidden_size, num_layers,
+                           batch_first=True,
+                           dropout=0.1 if num_layers > 1 else 0)
+        self.fc   = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        # x: (batch, seq_len, 2)
-        out, _ = self.gru(x)         # out: (batch, seq_len, hidden)
-        out = out[:, -1, :]          # lấy bước cuối: (batch, hidden)
-        out = self.fc(out)           # (batch, 2)
-        return out
+        out, _ = self.gru(x)
+        return self.fc(out[:, -1, :])
 
 
 # ============================================================
-# MODEL 4: Transformer (state-of-the-art baseline)
+# MODEL 4: Transformer Baseline
 # ============================================================
 class PositionalEncoding(nn.Module):
-    """
-    Positional Encoding cho Transformer.
-    Vì Transformer không có khái niệm thứ tự thời gian như RNN,
-    cần thêm thông tin vị trí vào input.
-
-    Dùng công thức sin/cos chuẩn từ paper "Attention Is All You Need".
-    """
     def __init__(self, d_model, max_len=200, dropout=0.1):
-        super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len).unsqueeze(1).float()
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+        pe       = torch.zeros(max_len, d_model)
+        pos      = torch.arange(0, max_len).unsqueeze(1).float()
         div_term = torch.exp(
             torch.arange(0, d_model, 2).float() *
             (-math.log(10000.0) / d_model)
         )
-        pe[:, 0::2] = torch.sin(position * div_term)   # chiều chẵn
-        pe[:, 1::2] = torch.cos(position * div_term)   # chiều lẻ
-        pe = pe.unsqueeze(0)                            # (1, max_len, d_model)
-        self.register_buffer('pe', pe)
+        pe[:, 0::2] = torch.sin(pos * div_term)
+        pe[:, 1::2] = torch.cos(pos * div_term)
+        self.register_buffer('pe', pe.unsqueeze(0))
 
     def forward(self, x):
-        # x: (batch, seq_len, d_model)
-        x = x + self.pe[:, :x.size(1), :]
-        return self.dropout(x)
+        return self.dropout(x + self.pe[:, :x.size(1)])
 
 
 class TransformerModel(nn.Module):
     """
-    Transformer Encoder cho time-series channel prediction.
-    State-of-the-art trong nhiều bài toán sequence.
+    Transformer cho Massive MIMO channel prediction.
 
-    Cơ chế Multi-Head Self-Attention cho phép model nhìn
-    toàn bộ chuỗi input và tự học mối quan hệ giữa các bước.
+    Ưu điểm với MIMO: Self-Attention có thể học tương quan
+    không gian giữa các anten (spatial correlation) qua thời gian.
 
-    Điểm mạnh: xử lý song song, không bị vanishing gradient.
-    Điểm yếu: cần nhiều data hơn, nặng hơn LSTM/GRU.
+    Với input 128 chiều, d_model phải đủ lớn để biểu diễn
+    toàn bộ thông tin không gian-thời gian.
     """
-    def __init__(self, input_size=2, d_model=64, nhead=4,
-                 num_layers=2, output_size=2, dropout=0.1):
-        super(TransformerModel, self).__init__()
-        self.name = 'Transformer'
-
-        # Project input_size -> d_model
+    def __init__(self, input_size=FEATURE_SIZE, d_model=128,
+                 nhead=8, num_layers=2, output_size=FEATURE_SIZE,
+                 dropout=0.1):
+        super().__init__()
+        self.name       = 'Transformer'
         self.input_proj = nn.Linear(input_size, d_model)
+        self.pos_enc    = PositionalEncoding(d_model, dropout=dropout)
 
-        # Positional encoding
-        self.pos_enc = PositionalEncoding(d_model, dropout=dropout)
-
-        # Transformer encoder
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model         = d_model,
-            nhead           = nhead,
-            dim_feedforward = d_model * 4,
-            dropout         = dropout,
-            batch_first     = True
+        enc_layer = nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=nhead,
+            dim_feedforward=d_model*4,
+            dropout=dropout, batch_first=True
         )
-        self.transformer = nn.TransformerEncoder(
-            encoder_layer,
-            num_layers = num_layers
-        )
-
-        # Output layer
-        self.fc = nn.Linear(d_model, output_size)
+        self.transformer = nn.TransformerEncoder(enc_layer, num_layers)
+        self.fc          = nn.Linear(d_model, output_size)
 
     def forward(self, x):
-        # x: (batch, seq_len, 2)
-        x = self.input_proj(x)      # (batch, seq_len, d_model)
-        x = self.pos_enc(x)         # thêm positional encoding
-        x = self.transformer(x)     # (batch, seq_len, d_model)
-        x = x[:, -1, :]            # lấy bước cuối: (batch, d_model)
-        x = self.fc(x)             # (batch, 2)
-        return x
+        x = self.pos_enc(self.input_proj(x))
+        x = self.transformer(x)
+        return self.fc(x[:, -1, :])
 
 
 # ============================================================
-# FACTORY FUNCTION: tạo model theo tên
+# FACTORY FUNCTION
 # ============================================================
-def get_baseline(name, hidden_size=64, num_layers=2):
+def get_baseline(name, hidden_size=128, num_layers=2,
+                 feature_size=FEATURE_SIZE):
     """
     Tạo baseline model theo tên.
 
     Args:
-        name        : 'RNN', 'LSTM', 'GRU', 'Transformer'
-        hidden_size : số neurons ẩn
-        num_layers  : số lớp
-
-    Returns:
-        model : PyTorch model tương ứng
-
-    Ví dụ:
-        model = get_baseline('LSTM')
-        model = get_baseline('Transformer', hidden_size=128)
+        name         : 'RNN', 'LSTM', 'GRU', 'Transformer'
+        hidden_size  : số hidden units
+        num_layers   : số tầng
+        feature_size : 2*N_TX*N_RX (mặc định 128 cho 64×1 MIMO)
     """
     models = {
-        'RNN':         RNNModel(hidden_size=hidden_size,
-                                num_layers=num_layers),
-        'LSTM':        LSTMModel(hidden_size=hidden_size,
-                                 num_layers=num_layers),
-        'GRU':         GRUModel(hidden_size=hidden_size,
-                                num_layers=num_layers),
-        'Transformer': TransformerModel(d_model=hidden_size,
-                                        num_layers=num_layers),
+        'RNN': RNNModel(
+            input_size=feature_size, hidden_size=hidden_size,
+            num_layers=num_layers, output_size=feature_size),
+        'LSTM': LSTMModel(
+            input_size=feature_size, hidden_size=hidden_size,
+            num_layers=num_layers, output_size=feature_size),
+        'GRU': GRUModel(
+            input_size=feature_size, hidden_size=hidden_size,
+            num_layers=num_layers, output_size=feature_size),
+        'Transformer': TransformerModel(
+            input_size=feature_size, d_model=hidden_size,
+            num_layers=num_layers, output_size=feature_size),
     }
     if name not in models:
-        raise ValueError(f"Model '{name}' không tồn tại. "
-                         f"Chọn trong: {list(models.keys())}")
+        raise ValueError(f"Không có model '{name}'. "
+                         f"Chọn: {list(models.keys())}")
     return models[name]
 
 
 # ============================================================
-# QUICK TEST: chạy file này trực tiếp để kiểm tra shape
+# QUICK TEST
 # ============================================================
 if __name__ == "__main__":
-    batch    = 32
-    seq_len  = 50
-    x = torch.randn(batch, seq_len, 2)
+    batch   = 16
+    seq_len = 50
+    feat    = FEATURE_SIZE  # 128
+    x = torch.randn(batch, seq_len, feat)
 
-    print("=" * 50)
-    print("  Kiểm tra shape output các baseline model")
-    print(f"  Input: {x.shape}")
-    print("=" * 50)
+    print("=" * 55)
+    print(f"  Massive MIMO Baselines — Feature size = {feat}")
+    print(f"  (N_TX={N_TX}, N_RX={N_RX}, 2×{N_TX}×{N_RX} = {feat})")
+    print("=" * 55)
 
     for name in ['RNN', 'LSTM', 'GRU', 'Transformer']:
         model  = get_baseline(name)
         out    = model(x)
         params = sum(p.numel() for p in model.parameters())
-        print(f"  {name:<12} output: {out.shape}  "
-              f"params: {params:,}")
+        print(f"  {name:<12} in:{x.shape} → out:{out.shape} "
+              f"| params: {params:,}")
 
-    print("\nTất cả model OK!")
+    print("\nAll baselines OK!")
