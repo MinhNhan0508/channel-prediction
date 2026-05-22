@@ -9,9 +9,9 @@
 
 ## Environment
 
-- **Python:** `C:/Anaconda/envs/tf_env/python.exe` (Python 3.10) — always use this, NOT Python 3.13
-- **GPU:** NVIDIA GeForce GTX 1650, CUDA 13.0, PyTorch cu124
-- **Run scripts from:** `d:/Tailieutrentruong/Doantotnghiep/FinalProject/` (project root)
+- **Python:** `C:/Users/lequo/anaconda3/envs/channel_prediction/python.exe` (PyTorch 2.6, CUDA 12.4)
+- **GPU:** NVIDIA GeForce GTX 1650, CUDA 12.4
+- **Run scripts from:** `channel-prediction/` subfolder (vì code dùng path tương đối `data/`, `results/`)
 
 ---
 

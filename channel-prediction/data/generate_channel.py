@@ -14,21 +14,33 @@ TRAIN_RATIO = 0.8
 
 # ── Thông số Massive MIMO ──────────────────────────────────
 N_TX     = 64   # Số anten BS (Base Station) — đây là "Massive"
-N_RX     = 2    # Số anten UE (User Equipment) — uplink đơn giản
+N_RX     = 2    # Số anten UE (User Equipment)
 N_PATHS  = 10   # Số đường truyền đa đường (multipath)
 D_LAMBDA = 0.5  # Khoảng cách anten / bước sóng (half-wavelength)
 
-# Kết quả:
-#   Kênh h(t) ∈ ℂ^(N_RX × N_TX) = ℂ^(64 × 64)
-#   Mỗi bước thời gian có 64 số phức = 128 features (real + imag)
-#   Input model: (seq_len, 128)
-#   Output model: (128,)
+# Kết quả với N_TX=64, N_RX=2:
+#   Kênh H(t) ∈ ℂ^(N_RX × N_TX) = ℂ^(2 × 64)
+#   Mỗi bước thời gian có 2×64 = 128 số phức
+#   = 256 features thực (real + imag) = 2 × N_RX × N_TX
+#   Input model : (seq_len, 256)
+#   Output model: (256,)
 
 
 # ============================================================
 # HÀM 1: Tính Doppler frequency
 # ============================================================
 def compute_doppler(velocity_kmh):
+    """
+    Tính tần số Doppler cực đại từ tốc độ di chuyển.
+
+    Công thức: fd = v * fc / c
+
+    Args:
+        velocity_kmh: tốc độ di chuyển (km/h)
+
+    Returns:
+        fd: tần số Doppler cực đại (Hz)
+    """
     v_ms = velocity_kmh / 3.6
     return v_ms * FC / C
 
@@ -146,15 +158,20 @@ def create_sequences(H, seq_len=SEQ_LEN):
     Chuyển chuỗi kênh MIMO H(t) thành cặp (input, output) cho model.
 
     SISO: mỗi bước có 2 features (real + imag của 1 số phức)
-    MIMO: mỗi bước có 2*n_rx*n_tx features
+    MIMO: mỗi bước có 2 * n_rx * n_tx features
 
-    Với N_TX=64, N_RX=1:
-        Mỗi bước = 128 features (real part 64 + imag part 64)
+    Với N_TX=64, N_RX=2:
+        Mỗi bước có 2 × 64 = 128 số phức
+        → flatten thành 128 chiều phức
+        → tách real + imag → 256 features
+        Feature size = 2 × N_RX × N_TX = 256
 
-    Flatten H(t): (n_rx, n_tx) → (n_rx*n_tx,) → tách real/imag → (2*n_rx*n_tx,)
+    Cách flatten H(t):
+        H(t) shape (n_rx, n_tx) → reshape (n_rx * n_tx,)
+                                → cat([real, imag]) → (2 * n_rx * n_tx,)
 
-    X shape: (n_samples, seq_len, 2*n_rx*n_tx)  ← input chuỗi
-    y shape: (n_samples, 2*n_rx*n_tx)           ← output bước tiếp theo
+    X shape: (n_samples, seq_len, 256)   ← input chuỗi
+    y shape: (n_samples, 256)            ← output bước tiếp theo
 
     Args:
         H       : kênh MIMO shape (N, n_rx, n_tx) dtype complex
@@ -166,13 +183,16 @@ def create_sequences(H, seq_len=SEQ_LEN):
     n_samples, n_rx, n_tx = H.shape
     feature_size = 2 * n_rx * n_tx  # real + imag
 
-    # Flatten và tách real/imag: (N, n_rx*n_tx) → (N, 2*n_rx*n_tx)
-    H_flat = H.reshape(n_samples, -1)          # (N, n_rx*n_tx)
+    # Flatten và tách real/imag
+    # H_flat: (N, n_rx*n_tx)
+    # H_ri  : (N, 2*n_rx*n_tx) — half đầu là real, half sau là imag
+    H_flat = H.reshape(n_samples, -1)
     H_ri   = np.concatenate([
         np.real(H_flat),
         np.imag(H_flat)
-    ], axis=1)                                  # (N, 2*n_rx*n_tx)
+    ], axis=1)
 
+    # Sliding window: cửa sổ trượt từng bước 1
     X, y = [], []
     for i in range(n_samples - seq_len):
         X.append(H_ri[i : i + seq_len])         # (seq_len, feature_size)
@@ -186,6 +206,14 @@ def create_sequences(H, seq_len=SEQ_LEN):
 # HÀM 5: Pipeline sinh và lưu dataset
 # ============================================================
 def generate_and_save(velocity_kmh, seed=42, save_dir='data'):
+    """
+    Pipeline đầy đủ: sinh kênh → tạo sequences → chia train/test → lưu.
+
+    Args:
+        velocity_kmh : tốc độ di chuyển (km/h)
+        seed         : random seed (để tái lập)
+        save_dir     : thư mục lưu file .npz
+    """
     os.makedirs(save_dir, exist_ok=True)
 
     fd = compute_doppler(velocity_kmh)
@@ -202,14 +230,14 @@ def generate_and_save(velocity_kmh, seed=42, save_dir='data'):
     print(f"  X shape: {X.shape}  "
           f"({SEQ_LEN} bước × {X.shape[2]} features)")
 
-    # Chia train/test
+    # Chia train/test (không shuffle vì là time series)
     split   = int(len(X) * TRAIN_RATIO)
     X_train = X[:split]
     y_train = y[:split]
     X_test  = X[split:]
     y_test  = y[split:]
 
-    # Chuẩn hóa
+    # Chuẩn hóa theo max abs trên train set (giữ scale để inverse khi cần)
     scale   = np.max(np.abs(X_train))
     X_train = X_train / scale
     y_train = y_train / scale
@@ -249,6 +277,12 @@ def generate_and_save(velocity_kmh, seed=42, save_dir='data'):
 # HÀM 6: Vẽ biên độ kênh (anten 0)
 # ============================================================
 def plot_channels(data_list, velocities, n_show=500):
+    """
+    Vẽ biên độ kênh |h(t)| để kiểm tra trực quan dữ liệu sinh ra.
+
+    Hiển thị 4 anten (0, 1, 5, 10) để thấy sự khác nhau giữa các anten
+    trong cùng một thời điểm — minh hoạ spatial correlation của ULA.
+    """
     os.makedirs('results', exist_ok=True)
     fig, axes = plt.subplots(len(velocities), 1,
                               figsize=(12, 3*len(velocities)),
@@ -260,15 +294,15 @@ def plot_channels(data_list, velocities, n_show=500):
     t_ms   = np.arange(n_show) / FS * 1000
 
     for ax, data, v, color in zip(axes, data_list, velocities, colors):
-        # Lấy kênh của anten thứ 0 (đại diện)
+        # Lấy kênh tại (rx=0, tx=0)
         h0 = data['H_raw'][:n_show, 0, 0]
         fd = data['fd']
 
         ax.plot(t_ms, np.abs(h0),
                 color=color, linewidth=0.8, alpha=0.9,
-                label='Anten 0')
+                label='Anten TX 0')
 
-        # Vẽ thêm vài anten để thấy sự khác nhau
+        # Vẽ thêm vài anten TX để thấy sự khác nhau
         for ant in [1, 5, 10]:
             if ant < N_TX:
                 h_ant = data['H_raw'][:n_show, 0, ant]
@@ -278,7 +312,7 @@ def plot_channels(data_list, velocities, n_show=500):
         ax.set_ylabel('|h(t)|')
         ax.set_title(
             f'v={v} km/h | fd={fd:.0f} Hz | '
-            f'{N_TX} anten BS (hiển thị anten 0, 1, 5, 10)',
+            f'{N_TX} anten BS (hiển thị anten 0, 1, 5, 10 tại RX 0)',
             fontsize=10
         )
         ax.grid(True, alpha=0.3)
@@ -301,11 +335,13 @@ def plot_channels(data_list, velocities, n_show=500):
 # CHẠY CHÍNH
 # ============================================================
 if __name__ == "__main__":
+    feature_size = 2 * N_TX * N_RX
     print("=" * 60)
     print("  Massive MIMO Channel Data Generator")
     print(f"  N_TX={N_TX} (BS antennas) | N_RX={N_RX} (UE antennas)")
     print(f"  N={N} samples | SEQ_LEN={SEQ_LEN} | N_PATHS={N_PATHS}")
-    print(f"  Feature size per step = {2*N_TX*N_RX} (real+imag × N_TX)")
+    print(f"  Feature size per step = {feature_size} "
+          f"(2 × N_RX × N_TX = 2 × {N_RX} × {N_TX})")
     print("=" * 60)
 
     velocities = [30, 120, 300]
