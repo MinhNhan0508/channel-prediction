@@ -1,0 +1,14 @@
+model_name: st_mamba
+n_rf: 8
+n_m: 4
+p_frames: 30
+q_frames: 5
+d_spatial: 64
+n_mamba_layers: 3
+d_state: 16
+d_conv: 4
+expand: 2
+cnn_encoder_channels: [16, 32, 64]
+cnn_decoder_channels: [48, 32, 16]
+n_pred_heads: 4
+use_batchnorm: true

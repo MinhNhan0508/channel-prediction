@@ -1,0 +1,25 @@
+seed: 42
+output_dir: data
+
+# System parameters (FIXED per IEICE 2026)
+n_bs: 64
+n_rf: 8
+n_m: 4
+f_carrier_ghz: 30.0
+t_sample_ms: 0.625
+n_paths: 23
+
+# Frame structure
+p_frames: 30
+q_frames: 5
+l_frames: 10
+
+# Random ranges for training samples
+velocity_range_train: [30.0, 50.0]
+delay_spread_range: [25.0, 250.0]
+snr_range_train: [10.0, 20.0]
+
+# Dataset sizes
+n_train: 8000
+n_val: 1000
+n_test_per_scenario: 500

@@ -1,0 +1,14 @@
+n_epochs: 50
+batch_size: 4
+lr: 1.0e-3
+weight_decay: 0.0
+warmup_ratio: 0.0
+use_amp: false
+patience: 9999
+num_workers: 0
+
+alpha: 1.0
+beta: 0.0
+gamma: 0.0
+
+overfit_n_samples: 8

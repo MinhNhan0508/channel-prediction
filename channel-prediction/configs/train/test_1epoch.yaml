@@ -1,0 +1,11 @@
+alpha: 1.0
+batch_size: 32
+beta: 0.1
+gamma: 0.05
+lr: 0.0003
+n_epochs: 1
+num_workers: 2
+patience: 15
+use_amp: true
+warmup_ratio: 0.05
+weight_decay: 0.0001

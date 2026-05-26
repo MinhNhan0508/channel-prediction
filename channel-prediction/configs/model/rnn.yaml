@@ -1,0 +1,8 @@
+model_name: rnn
+input_dim: 64
+hidden_size: 192
+num_layers: 3
+p_frames: 30
+q_frames: 5
+dropout: 0.1
+n_pred_heads: 4

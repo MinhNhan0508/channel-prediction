@@ -1,0 +1,8 @@
+model_name: gru
+input_dim: 64
+hidden_size: 160
+num_layers: 2
+p_frames: 30
+q_frames: 5
+dropout: 0.1
+n_pred_heads: 4
