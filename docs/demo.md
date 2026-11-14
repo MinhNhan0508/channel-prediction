@@ -20,12 +20,22 @@ Open `http://127.0.0.1:7860/`. Keep the terminal open while using the app.
 To select another port, use `python app.py --port 7861`. Stop it with Ctrl+C.
 The server binds to loopback and does not create a public Gradio share link.
 
+## Interface
+
+The local demo uses a muted purple theme. Prediction settings are grouped above
+**Run prediction**. The chart is on the left and the compact score table is on
+the right; the results stack vertically on narrower screens. Scroll within the table to
+see any rows below the visible area.
+
+![Model comparison in the local demo](assets/demo-benchmark.png)
+
 ## Explore
 
 1. Choose a test velocity, example index and training seed.
 2. Choose **Model benchmark** or **Component ablations**, then click **Run prediction**.
    Every method receives the same noisy history. Classical references are deterministic;
-   the selected training seed applies only to neural models.
+   the selected training seed applies only to neural models. A dash in the Seed
+   column marks a deterministic reference.
 3. The left plot shows one complex channel coefficient's magnitude over time.
    Change RF chain or UE antenna to inspect another coefficient.
 4. The right plot and score table measure error across all coefficients,
@@ -35,6 +45,10 @@ Indices 0–7 are the first eight lexicographically sorted test sequences at eac
 velocity. They were not selected by model score. A single-example score can be
 very different from the full test-set average in `docs/benchmark-results/README.md`.
 Velocity is simulation metadata for selecting examples, not a model input.
+The forecast sampling interval is 0.125 ms. The magnitude plot shows one
+coefficient; NMSE uses all 8 × 4 complex coefficients. Beam selection assumes
+ideal clean historical pilots. These assumptions also apply to the demo.
+
 
 The app verifies file digests, model source identity and tensor shapes. It refuses
 legacy-policy bundles and incompatible weights. It never silently substitutes

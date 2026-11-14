@@ -97,6 +97,8 @@ The bundle contains 27 inference-only weights, a manifest with integrity digests
 and 40 fixed examples. Training datasets and resumable checkpoints are kept
 outside source history. See [demo instructions](docs/demo.md).
 
+![Local model comparison demo](docs/assets/demo-benchmark.png)
+
 ## Reproduce and test
 
 ```sh
