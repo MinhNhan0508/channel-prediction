@@ -1,0 +1,15 @@
+# Fixed before the formal test evaluation. All five configurations share it.
+n_epochs: 300
+batch_size: 64
+lr: 0.001
+weight_decay: 0.0001
+warmup_ratio: 0.05
+use_amp: false
+patience: 120
+num_workers: 0
+lr_schedule: two_stage
+stage1_ratio: 0.6667
+stage2_lr_factor: 0.1
+loss_type: mse_warmup
+mse_warmup_epochs: 10
+cache_dataset: true

@@ -1,0 +1,19 @@
+# Ablation "w/o PAD-prior" = DAST thuần NN (không fuse cổ điển). Doppler-enc vẫn bật.
+# Dùng để chứng minh PAD-prior + gate đóng góp bao nhiêu so với pure-NN.
+model_name: pi_dast
+n_rf: 8
+n_m: 4
+p_frames: 10
+q_frames: 5
+d_model: 96
+n_heads: 4
+num_encoder_layers: 2
+num_decoder_layers: 2
+dim_feedforward: 192
+dropout: 0.1
+use_spatial: false
+use_doppler_enc: true
+use_pad_prior: false
+cnn_encoder_channels: [16, 32, 48]
+cnn_decoder_channels: [48, 32, 16]
+use_batchnorm: true

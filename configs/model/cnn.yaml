@@ -1,0 +1,9 @@
+model_name: cnn
+n_rf: 8
+n_m: 4
+p_frames: 10
+q_frames: 5
+d_model: 160
+spatial_channels: [16, 32]
+temporal_channels: 160
+dropout: 0.1

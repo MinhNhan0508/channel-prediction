@@ -1,0 +1,14 @@
+.venv/
+.venv*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.gradio/
+.DS_Store
+.env
+/data/
+/runs/
+*.log
+# Large inference artifacts are distributed separately from source history.
+/artifacts/
+/dist/

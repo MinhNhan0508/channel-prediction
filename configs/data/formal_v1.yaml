@@ -1,0 +1,19 @@
+seed: 42
+output_dir: data/sionna_causal_v1
+n_bs: 64
+n_rf: 8
+n_m: 4
+f_carrier_ghz: 30.0
+t_sample_ms: 0.125
+p_frames: 10
+q_frames: 5
+velocity_range_train: [10.0, 120.0]
+delay_spread_range: [25.0, 250.0]
+snr_range_train: [5.0, 25.0]
+test_velocities: [30, 50, 70, 90, 120]
+test_delay_spread: 50.0
+test_snr: 20.0
+n_train: 8000
+n_val: 1000
+n_test_per_scenario: 500
+gen_batch: 16

@@ -1,0 +1,16 @@
+# Remove only the FiLM encoder; retain PAD and gated fusion.
+# This differs from the historical pi_dast_nodoppler experiment.
+model_name: pi_dast
+n_rf: 8
+n_m: 4
+p_frames: 10
+q_frames: 5
+d_model: 96
+n_heads: 4
+num_encoder_layers: 2
+num_decoder_layers: 2
+dim_feedforward: 192
+dropout: 0.1
+use_doppler_enc: false
+use_pad_prior: true
+use_gate: true

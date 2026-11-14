@@ -1,0 +1,529 @@
+{
+  "experiment": {
+    "schema_version": 1,
+    "plan": {
+      "schema_version": 1,
+      "id": "formal_causal_v1",
+      "data_dir": "../data_sionna_causal_v1",
+      "output_dir": "../results",
+      "device": "auto",
+      "require_cuda": true,
+      "require_data_integrity": true,
+      "evaluate_when_complete": true,
+      "train_config": "configs/train/formal_v1.yaml",
+      "seeds": [
+        42,
+        123,
+        2024
+      ],
+      "test_velocities": [
+        30,
+        50,
+        70,
+        90,
+        120
+      ],
+      "expected_split_counts": {
+        "train": 8000,
+        "val": 1000,
+        "test_v30": 500,
+        "test_v50": 500,
+        "test_v70": 500,
+        "test_v90": 500,
+        "test_v120": 500
+      },
+      "variants": [
+        {
+          "id": "dast",
+          "model": "pi_dast",
+          "model_config": "configs/model/pi_dast.yaml"
+        },
+        {
+          "id": "transformer",
+          "model": "transformer",
+          "model_config": "configs/model/transformer.yaml"
+        },
+        {
+          "id": "fixed_gate",
+          "model": "pi_dast",
+          "model_config": "configs/model/pi_dast_fixedgate.yaml"
+        },
+        {
+          "id": "no_pad",
+          "model": "pi_dast",
+          "model_config": "configs/model/pi_dast_nopad.yaml"
+        },
+        {
+          "id": "no_film",
+          "model": "pi_dast",
+          "model_config": "configs/model/pi_dast_no_doppler_encoder.yaml"
+        }
+      ],
+      "runs": [
+        {
+          "variant": "dast",
+          "seed": 42
+        },
+        {
+          "variant": "transformer",
+          "seed": 42
+        },
+        {
+          "variant": "dast",
+          "seed": 123
+        },
+        {
+          "variant": "transformer",
+          "seed": 123
+        },
+        {
+          "variant": "dast",
+          "seed": 2024
+        },
+        {
+          "variant": "transformer",
+          "seed": 2024
+        },
+        {
+          "variant": "fixed_gate",
+          "seed": 42
+        },
+        {
+          "variant": "no_pad",
+          "seed": 42
+        },
+        {
+          "variant": "no_film",
+          "seed": 42
+        },
+        {
+          "variant": "fixed_gate",
+          "seed": 123
+        },
+        {
+          "variant": "no_pad",
+          "seed": 123
+        },
+        {
+          "variant": "no_film",
+          "seed": 123
+        },
+        {
+          "variant": "fixed_gate",
+          "seed": 2024
+        },
+        {
+          "variant": "no_pad",
+          "seed": 2024
+        },
+        {
+          "variant": "no_film",
+          "seed": 2024
+        }
+      ]
+    },
+    "training_config": {
+      "n_epochs": 300,
+      "batch_size": 64,
+      "lr": 0.001,
+      "weight_decay": 0.0001,
+      "warmup_ratio": 0.05,
+      "use_amp": false,
+      "patience": 120,
+      "num_workers": 0,
+      "lr_schedule": "two_stage",
+      "stage1_ratio": 0.6667,
+      "stage2_lr_factor": 0.1,
+      "loss_type": "mse_warmup",
+      "mse_warmup_epochs": 10,
+      "cache_dataset": true
+    },
+    "models": {
+      "dast": {
+        "model_name": "pi_dast",
+        "n_rf": 8,
+        "n_m": 4,
+        "p_frames": 10,
+        "q_frames": 5,
+        "d_model": 96,
+        "n_heads": 4,
+        "num_encoder_layers": 2,
+        "num_decoder_layers": 2,
+        "dim_feedforward": 192,
+        "dropout": 0.1,
+        "use_spatial": false,
+        "use_doppler_enc": true,
+        "use_pad_prior": true,
+        "use_gate": true,
+        "cnn_encoder_channels": [
+          16,
+          32,
+          48
+        ],
+        "cnn_decoder_channels": [
+          48,
+          32,
+          16
+        ],
+        "use_batchnorm": true
+      },
+      "transformer": {
+        "model_name": "transformer",
+        "input_dim": 64,
+        "d_model": 96,
+        "n_heads": 4,
+        "num_encoder_layers": 2,
+        "num_decoder_layers": 2,
+        "dim_feedforward": 192,
+        "p_frames": 10,
+        "q_frames": 5,
+        "dropout": 0.1
+      },
+      "fixed_gate": {
+        "model_name": "pi_dast",
+        "n_rf": 8,
+        "n_m": 4,
+        "p_frames": 10,
+        "q_frames": 5,
+        "d_model": 96,
+        "n_heads": 4,
+        "num_encoder_layers": 2,
+        "num_decoder_layers": 2,
+        "dim_feedforward": 192,
+        "dropout": 0.1,
+        "use_spatial": false,
+        "use_doppler_enc": true,
+        "use_pad_prior": true,
+        "use_gate": false,
+        "cnn_encoder_channels": [
+          16,
+          32,
+          48
+        ],
+        "cnn_decoder_channels": [
+          48,
+          32,
+          16
+        ],
+        "use_batchnorm": true
+      },
+      "no_pad": {
+        "model_name": "pi_dast",
+        "n_rf": 8,
+        "n_m": 4,
+        "p_frames": 10,
+        "q_frames": 5,
+        "d_model": 96,
+        "n_heads": 4,
+        "num_encoder_layers": 2,
+        "num_decoder_layers": 2,
+        "dim_feedforward": 192,
+        "dropout": 0.1,
+        "use_spatial": false,
+        "use_doppler_enc": true,
+        "use_pad_prior": false,
+        "cnn_encoder_channels": [
+          16,
+          32,
+          48
+        ],
+        "cnn_decoder_channels": [
+          48,
+          32,
+          16
+        ],
+        "use_batchnorm": true
+      },
+      "no_film": {
+        "model_name": "pi_dast",
+        "n_rf": 8,
+        "n_m": 4,
+        "p_frames": 10,
+        "q_frames": 5,
+        "d_model": 96,
+        "n_heads": 4,
+        "num_encoder_layers": 2,
+        "num_decoder_layers": 2,
+        "dim_feedforward": 192,
+        "dropout": 0.1,
+        "use_doppler_enc": false,
+        "use_pad_prior": true,
+        "use_gate": true
+      }
+    },
+    "data_provenance": {
+      "manifest_sha256": "fd206ff68f279c88146b7ec1afe710feaa45d4e48f0b70f65a26605a941eb6db",
+      "observation_policy": "history_only_v1"
+    },
+    "source_sha256": {
+      "src/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/data/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/data/channel_generator.py": "5c2376f18c8f78379354ef24d76935b368067ad2b1dc539a519f8aa6b5af6cac",
+      "src/data/dataset.py": "bf7a090559d1ca893d95114ce5abe09c03c1246c175008e444d26b01de13b6bb",
+      "src/data/normalize.py": "d9b5d7dbc0bf729ac8a6d7164397c2649011a1f2ad55beac2f6fb217d704302d",
+      "src/data/observation.py": "b0d6c9fb53678b1d6b13690404d113bd364104af93d1181c313050bfbb88e2e1",
+      "src/data/provenance.py": "11102d07c78cc5c87ee9502eb9ca651ddafe6ad7a274a8591d86be18d5422ab7",
+      "src/evaluation/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/evaluation/evaluator.py": "1a21716b81cb5c17604fce91384de5fefb0eccfc9d20004cced5a4dc9a83933e",
+      "src/evaluation/metrics.py": "f848e91e21bf9d1617cf385c0acb8b7053c700d1faec51673956116a3fc70393",
+      "src/losses/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/losses/combined.py": "bab4c32d2f68988ee1b8252b02e8c8c049c0e0f5c614c6d78b5e6aebd9b53bfd",
+      "src/losses/nmse.py": "1c4fafe7ed7e8a317cd983506316788570f28af2d3197aea6a0ed19d9617f486",
+      "src/losses/phase.py": "ad95ee6d7895e314b923899af7ab01ea76fd46d430042ec510fbfb06d48b0551",
+      "src/losses/temporal.py": "de6508012a79c38a578320bde2b8cf9492952473993d6da4a6763cf2b98ede08",
+      "src/models/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/models/attention.py": "7d32f319431b0e6251abc7f2b377b7bb98b70544a14e2b6bc43c09324ee669cd",
+      "src/models/baselines/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/models/baselines/cnn.py": "18b4d59137ccacf53b96b722e5a5344db9b01d3dddae3f2d357b8d8cb19a44ad",
+      "src/models/baselines/gru.py": "b4b92c480ebc9836dd359ede9cbf53f715f2aa368b4b4a6e32919e1e7ab76bfd",
+      "src/models/baselines/lstm.py": "a28e8a20bd5eac6ed831473b82fb45de26bff22e5e927248904072e08827699d",
+      "src/models/baselines/rnn.py": "eba5755be52721f70826b2fc60f4dd40da19216440c4a40d54c41acc69dde715",
+      "src/models/baselines/transformer.py": "0e381624251340fca9b2a49fe0f55855a4d8f6ff3ced0f74046d0272b54b760b",
+      "src/models/kalman.py": "0ba939e4614673ff8f94d3af379d33971f6cff3a16c2214bed35e67b4d9a5d47",
+      "src/models/pad.py": "d0dc4f6dd273a0b85399ebe7b04766d7b2b28758b314de4e050b3bb103adda26",
+      "src/models/pad_torch.py": "a7282d786dcf12f55eb61ebae9c4ec6a48be49dabc74440ce2bb8213651e8512",
+      "src/models/pi_dast.py": "c8cae0bb30509eff9d6ce8343667400b348ede874787fb59a4d32ae51b81447b",
+      "src/models/utils.py": "9690fdc1505b253a8de1278af92c7d6675e51a3667b50a8bd39d8ee4bc93d75f",
+      "src/training/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/training/checkpoint.py": "f6941281aba379b2fcbdfc7401bee0f135c2339f1e856487d3bd3b996bfaace9",
+      "src/training/curriculum.py": "64198e044be958502d037267e2ede0c031016f6c33b960120fb263f450093cd4",
+      "src/training/optimizer.py": "86aa8ed95bf215d2c3f84a43bc3c042d483a17da8d2c2a29ac9356e9afaf4748",
+      "src/training/trainer.py": "c76cc9773e5c0990af56469d354f65639e92f96ce997eb546fcd34abf79a7e96",
+      "src/utils/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/utils/config.py": "30f9a1710f4f66aa40f74c4f8a2548b678f48fcecbe225560abf0d583899c396",
+      "src/utils/logger.py": "6b694719793464787bf6791c88f0e8ab415cf64a98890e1a16f324dde902bbdf",
+      "src/utils/seed.py": "9fe97210b8a79e0cada2d191655e9583182b2d6ebaab9fe5f5d5cd4415984471",
+      "tools/__init__.py": "6ad8c2fd97e4a1084d71c174900fe00e2e4a7008b6d2285d0c0fd21c7dc76024",
+      "tools/check_dataset.py": "07f0a8e9726f7223bb0292cd65926fbc668ab5c965155ccf78edb991d5f56ab7",
+      "tools/evaluate_suite.py": "27e0890c3bcc25300d5ac6de5450a393641c9728889b0925c83ddae3117f574e",
+      "tools/train_suite.py": "dfba40d9c72265b7e54bba376611cd4c037a54306feaee2477bbd53c90593b11"
+    },
+    "runtime": {
+      "torch": "2.6.0+cu124",
+      "numpy": "2.2.6",
+      "python": "3.10.20",
+      "device": "cuda",
+      "gpu": "NVIDIA GeForce GTX 1650"
+    }
+  },
+  "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+  "dataset_content_sha256": "88a533c21aca43dfa85a16da51e00b0665dc5a2723e8f6f845919acd08f9042d",
+  "checkpoint_audit": {
+    "checkpoints": 15,
+    "test_groups": 75,
+    "per_frame_values": 187500,
+    "max_absolute_raw_nmse_difference": 0.0
+  },
+  "training_runs": [
+    {
+      "run_id": "dast_seed42",
+      "variant": "dast",
+      "model": "pi_dast",
+      "seed": 42,
+      "best_epoch": 71,
+      "best_val_nmse_linear": 0.38975460004806517,
+      "final_epoch": 191,
+      "params": 406677,
+      "current_process_train_s": 631.4771615000209,
+      "peak_cuda_allocated_bytes": 40890368,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "0218f29b56a772ed0a133b19be738034b736e167763195d700ff102fc9f9e8e2"
+    },
+    {
+      "run_id": "transformer_seed42",
+      "variant": "transformer",
+      "model": "transformer",
+      "seed": 42,
+      "best_epoch": 202,
+      "best_val_nmse_linear": 0.4521591053009033,
+      "final_epoch": 300,
+      "params": 388384,
+      "current_process_train_s": 689.7712628999725,
+      "peak_cuda_allocated_bytes": 39746048,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "ff20f2ae1a78f3266f79467b79e4cf327b17c7301caeecc9dff7ad43a452dcb9"
+    },
+    {
+      "run_id": "dast_seed123",
+      "variant": "dast",
+      "model": "pi_dast",
+      "seed": 123,
+      "best_epoch": 62,
+      "best_val_nmse_linear": 0.3886242895126343,
+      "final_epoch": 182,
+      "params": 406677,
+      "current_process_train_s": 599.8952982999617,
+      "peak_cuda_allocated_bytes": 40890368,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "3591e245d03d5c045f0223c33659cf4b462610fff102d5b76c201b9936ebc522"
+    },
+    {
+      "run_id": "transformer_seed123",
+      "variant": "transformer",
+      "model": "transformer",
+      "seed": 123,
+      "best_epoch": 91,
+      "best_val_nmse_linear": 0.4478205485343933,
+      "final_epoch": 211,
+      "params": 388384,
+      "current_process_train_s": 486.7461871999549,
+      "peak_cuda_allocated_bytes": 39746048,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "6847198b16f683cb12efc33969d47834bfd2eb578f4801f5079dfe77f39579c7"
+    },
+    {
+      "run_id": "dast_seed2024",
+      "variant": "dast",
+      "model": "pi_dast",
+      "seed": 2024,
+      "best_epoch": 70,
+      "best_val_nmse_linear": 0.39471358132362366,
+      "final_epoch": 190,
+      "params": 406677,
+      "current_process_train_s": 625.2425691001117,
+      "peak_cuda_allocated_bytes": 40890368,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "ed5cd46ec10225fe713541d408f5b3e4fbe2bc837ed40472d833b3264f39a1d4"
+    },
+    {
+      "run_id": "transformer_seed2024",
+      "variant": "transformer",
+      "model": "transformer",
+      "seed": 2024,
+      "best_epoch": 144,
+      "best_val_nmse_linear": 0.44910990810394286,
+      "final_epoch": 264,
+      "params": 388384,
+      "current_process_train_s": 608.3070772999199,
+      "peak_cuda_allocated_bytes": 39746048,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "c8f295400c52b038e77938b68d1f45c38332f3dedcef8d1dc6ab30e4c3ebddf7"
+    },
+    {
+      "run_id": "fixed_gate_seed42",
+      "variant": "fixed_gate",
+      "model": "pi_dast",
+      "seed": 42,
+      "best_epoch": 70,
+      "best_val_nmse_linear": 0.3945036005973816,
+      "final_epoch": 190,
+      "params": 406149,
+      "current_process_train_s": 602.7555789999897,
+      "peak_cuda_allocated_bytes": 40583680,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "7fb4a8c3b636273adcf8c18ba813741fb4fac5724f5ae6c72eaf4ef2e87cea0c"
+    },
+    {
+      "run_id": "no_pad_seed42",
+      "variant": "no_pad",
+      "model": "pi_dast",
+      "seed": 42,
+      "best_epoch": 95,
+      "best_val_nmse_linear": 0.4438625981807709,
+      "final_epoch": 215,
+      "params": 406144,
+      "current_process_train_s": 532.4464626000263,
+      "peak_cuda_allocated_bytes": 40581632,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "8604624b6e6cede2f67abcc2188d80eb569bc53002da9662ceb942afa406ac3a"
+    },
+    {
+      "run_id": "no_film_seed42",
+      "variant": "no_film",
+      "model": "pi_dast",
+      "seed": 42,
+      "best_epoch": 66,
+      "best_val_nmse_linear": 0.38921863126754763,
+      "final_epoch": 186,
+      "params": 387477,
+      "current_process_train_s": 584.8678349000402,
+      "peak_cuda_allocated_bytes": 40288256,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "0362e9f3405ba6c3823b021eadf3e25837226a006ba2ed0407d8b6e984eadecd"
+    },
+    {
+      "run_id": "fixed_gate_seed123",
+      "variant": "fixed_gate",
+      "model": "pi_dast",
+      "seed": 123,
+      "best_epoch": 88,
+      "best_val_nmse_linear": 0.39017564272880556,
+      "final_epoch": 208,
+      "params": 406149,
+      "current_process_train_s": 659.5089417999843,
+      "peak_cuda_allocated_bytes": 40583680,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "1815e2e73c78c089c69cf4fce39ef96a1f72b1b550c777a7230962e744558aa1"
+    },
+    {
+      "run_id": "no_pad_seed123",
+      "variant": "no_pad",
+      "model": "pi_dast",
+      "seed": 123,
+      "best_epoch": 90,
+      "best_val_nmse_linear": 0.4413050346374512,
+      "final_epoch": 210,
+      "params": 406144,
+      "current_process_train_s": 520.7204542000545,
+      "peak_cuda_allocated_bytes": 40581632,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "0e0b1c6ece4ffb1bf81aafb02723054aad1a2e74264f2f975dd7c8c8225e0e9a"
+    },
+    {
+      "run_id": "no_film_seed123",
+      "variant": "no_film",
+      "model": "pi_dast",
+      "seed": 123,
+      "best_epoch": 69,
+      "best_val_nmse_linear": 0.3939993999004364,
+      "final_epoch": 189,
+      "params": 387477,
+      "current_process_train_s": 589.3933216000441,
+      "peak_cuda_allocated_bytes": 40288256,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "de4e98a85c035e85568e6943eb18f648631314d241179ee24dace6edf76e3b8c"
+    },
+    {
+      "run_id": "fixed_gate_seed2024",
+      "variant": "fixed_gate",
+      "model": "pi_dast",
+      "seed": 2024,
+      "best_epoch": 59,
+      "best_val_nmse_linear": 0.3957484540939331,
+      "final_epoch": 179,
+      "params": 406149,
+      "current_process_train_s": 567.8660317999311,
+      "peak_cuda_allocated_bytes": 40583680,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "a13a598a4ef003a40608b11a5e3435832a5846acd146fce223f9f9cb76e0a949"
+    },
+    {
+      "run_id": "no_pad_seed2024",
+      "variant": "no_pad",
+      "model": "pi_dast",
+      "seed": 2024,
+      "best_epoch": 79,
+      "best_val_nmse_linear": 0.44120583176612854,
+      "final_epoch": 199,
+      "params": 406144,
+      "current_process_train_s": 492.9581290000351,
+      "peak_cuda_allocated_bytes": 40581632,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "efd959631af4b9fff4a751815de52bc2100c9a83cd6a881ec7f1c139108a6f19"
+    },
+    {
+      "run_id": "no_film_seed2024",
+      "variant": "no_film",
+      "model": "pi_dast",
+      "seed": 2024,
+      "best_epoch": 91,
+      "best_val_nmse_linear": 0.391029705286026,
+      "final_epoch": 211,
+      "params": 387477,
+      "current_process_train_s": 661.7351888000267,
+      "peak_cuda_allocated_bytes": 40288256,
+      "experiment_sha256": "71297b9718bbfc053762aa89bd88c7094989f9cdd0ee34b3d83657370fc3c73c",
+      "checkpoint_sha256": "7d862e29e565925c211c920371a1e12ff86395314cf29cf22ea1afa841cd5a56"
+    }
+  ]
+}

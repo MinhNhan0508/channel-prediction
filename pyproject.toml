@@ -1,0 +1,28 @@
+[project]
+name = "dast-channel-prediction"
+version = "1.0.0"
+description = "History-only MIMO channel prediction with an autoregressive Transformer hybrid"
+license = "MIT"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "torch==2.6.0",
+    "numpy==2.2.6",
+    "matplotlib==3.10.9",
+    "PyYAML==6.0.3",
+    "gradio==6.32.0",
+    "tqdm==4.70.1",
+]
+
+[project.optional-dependencies]
+train = ["tensorboard==2.20.0"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
