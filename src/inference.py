@@ -23,6 +23,10 @@ class InferenceBundle:
             path = (source_root / name).resolve()
             if not path.is_relative_to(source_root / 'src/models') or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
                 raise ValueError(f'Model source differs from exported experiment: {name}')
+        for name, digest in manifest.get('runtime_source_sha256', {}).items():
+            path = (source_root / name).resolve()
+            if not path.is_relative_to(source_root / 'src') or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                raise ValueError(f'Inference source differs from bundle: {name}')
         self.scale = float(manifest['normalization_scale'])
         if not np.isfinite(self.scale) or self.scale <= 0:
             raise ValueError('Invalid normalization scale.')

@@ -4,6 +4,7 @@ import os
 import random
 import numpy as np
 import torch
+from src.utils.atomic_io import replace_with_retry
 
 
 def random_state() -> dict:
@@ -33,7 +34,7 @@ def atomic_save(payload: dict,path: Path) -> None:
         torch.save(payload,stream)
         stream.flush()
         os.fsync(stream.fileno())
-    os.replace(temporary,path)
+    replace_with_retry(temporary,path)
 
 
 def load_for_resume(path: Path,expected_config: dict) -> dict:

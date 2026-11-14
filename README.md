@@ -6,7 +6,7 @@ autoregressive predictor and an FFT-feature-dependent blending gate.
 
 **Python · PyTorch · Sionna · Transformer · Time-series prediction · Gradio**
 
-![Test-set comparison](docs/results/nmse_by_velocity.png)
+![Comparison with neural and classical baselines](docs/benchmark-results/model_comparison.png)
 
 ## What it does
 
@@ -19,7 +19,7 @@ in a controlled simulation.
 - **Output:** 5 future channel matrices, predicted in parallel.
 - **Simulation:** one UE, 64 physical BS antennas, 8 RF chains, 30 GHz CDL-A,
   0.125 ms frame spacing, one subcarrier.
-- **Demo:** compare five trained variants on fixed held-out examples, with
+- **Demo:** compare six neural models, classical references and component ablations on fixed held-out examples, with
   coefficient trajectories and per-horizon NMSE.
 
 This is synthetic channel prediction, not an SDR deployment or a measured-radio benchmark.
@@ -46,7 +46,8 @@ a hard switch. No ground-truth velocity is provided to the model.
 
 ## Results
 
-The maintained experiment trains **5 variants × 3 seeds = 15 models** on
+The benchmark includes **6 neural models × 3 seeds = 18 trained models**, plus
+**3 DAST ablations × 3 seeds = 9 models**, for **27 training runs** on
 8,000 training and 1,000 validation sequences. Each model is tested on 500
 sequences at each of five velocities: **2,500 test sequences** in total.
 All checkpoints are selected by validation NMSE.
@@ -61,7 +62,12 @@ All checkpoints are selected by validation NMSE.
 
 Scores are means of three seed-level dB scores; lower is better. Improvements
 are computed from unrounded scores. The complete
-[results and seed variability](docs/results/README.md) include every run and ablation.
+[model comparison and seed variability](docs/benchmark-results/README.md) includes
+DAST, Transformer, LSTM, GRU, RNN, CNN, AR(4), Complex Kalman and Hold last.
+The [initial study and component ablations](docs/results/README.md) are reported separately.
+
+DAST has the lowest mean NMSE among the evaluated methods in these five scenarios.
+This finding is limited to the stated synthetic dataset and training recipe.
 
 The AR prior accounts for most of the improvement under this recipe. Removing
 FiLM produces nearly equivalent scores, and a fixed gate is slightly better at
@@ -77,8 +83,8 @@ Tested on Windows with Python 3.10 and CPU PyTorch 2.6.0. Install
 uv sync --locked --extra train
 ```
 
-Download the [v1.0.0 inference bundle](https://github.com/MinhNhan0508/channel-prediction/releases/download/v1.0.0/dast-formal-v1-inference.zip)
-and extract it **at the repository root**. It creates `artifacts/formal-v1/`.
+Download the [v1.0.0 inference bundle](https://github.com/MinhNhan0508/channel-prediction/releases/download/v1.0.0/dast-benchmark-v1-inference.zip)
+and extract it **at the repository root**. It creates `artifacts/benchmark-v1/`.
 Then run:
 
 ```sh
@@ -87,7 +93,7 @@ uv run --locked python app.py
 ```
 
 Open **http://127.0.0.1:7860/**. The demo runs on CPU and does not retrain models.
-The bundle contains 15 inference-only weights, a manifest with integrity digests,
+The bundle contains 27 inference-only weights, a manifest with integrity digests,
 and 40 fixed examples. Training datasets and resumable checkpoints are kept
 outside source history. See [demo instructions](docs/demo.md).
 
@@ -96,6 +102,7 @@ outside source history. See [demo instructions](docs/demo.md).
 ```sh
 uv run --locked --extra train python -m unittest discover -s tests -v
 uv run --locked python tools/check_report.py
+uv run --locked python -m tools.check_benchmark
 ```
 
 Tests cover model contracts, history-only preprocessing, dataset provenance,
@@ -123,9 +130,9 @@ is separate; it does not imply that the formal experiment was trained on CPU.
 | `docs/` | Methodology, experiments, results and demo instructions |
 | `app.py` | Local Gradio comparison app |
 
-Additional RNN/LSTM/GRU/CNN implementations are retained for experimentation.
-They were not trained in the maintained 15-run matrix and are not included in
-the new performance claims.
+The [benchmark protocol](docs/benchmark.md) explains the additional baseline
+suite, classical reference settings and the distinction between model-family
+comparisons and component ablations.
 
 ## Assumptions and limitations
 

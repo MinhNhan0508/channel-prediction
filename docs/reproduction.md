@@ -62,6 +62,15 @@ The suite runs every declared seed, selects checkpoints using validation NMSE
 and automatically evaluates all completed models. The source/data/config identity
 must remain fixed throughout an experiment.
 
+Run the additional learned baselines with the same environment and dataset:
+
+```sh
+python tools/train_suite.py run --plan configs/experiments/baseline_v1.json
+```
+
+This adds LSTM/GRU/RNN/CNN with three seeds each. The initial 15-run matrix and
+the 12-run extension use separate output directories. See [benchmark settings](benchmark.md).
+
 ```sh
 python tools/train_suite.py stop --plan configs/experiments/formal_v1.json
 python tools/train_suite.py run --plan configs/experiments/formal_v1.json --resume
@@ -96,6 +105,19 @@ python tools/smoke_inference.py --bundle artifacts/formal-v1
 
 Export requires matching source, dataset and completed checkpoints. It strips
 optimizer/RNG state and machine-local training paths. Use an empty export directory.
+
+To export the extension and merge the two compatible bundles:
+
+```sh
+python tools/export_bundle.py --results runs/baseline-v1 --data data/sionna_causal_v1 --output artifacts/baselines-v1
+python tools/merge_bundles.py --bundles artifacts/formal-v1 artifacts/baselines-v1 --output artifacts/benchmark-v1
+python tools/smoke_inference.py --bundle artifacts/benchmark-v1
+```
+
+The merge requires identical examples, normalization, observation policy and
+model source. Every model retains the identity of its own training experiment.
+The benchmark also evaluates four deterministic references once per scenario;
+these are not additional neural-network training runs.
 
 Windows CPU unit tests, full exported-weight inference and Gradio prediction
 requests have been exercised locally. The GitHub Actions workflow defines Linux

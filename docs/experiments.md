@@ -26,6 +26,10 @@ and SNR settings. Manifest checks and full-dataset validation run before trainin
 
 Each variant uses seeds **42, 123 and 2024**, for 15 runs in total.
 
+This initial matrix was followed by 12 runs for LSTM, GRU, RNN and CNN under
+the same data/recipe. The complete study has 27 training runs. See the
+[model-family benchmark](benchmark.md) and [complete model comparison](benchmark-results/README.md).
+
 | Variant | FiLM encoder | Classical AR prior | Mixture |
 |---|---|---|---|
 | DAST | Enabled | Enabled | FFT-feature-dependent gate |

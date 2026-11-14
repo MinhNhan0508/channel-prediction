@@ -30,7 +30,7 @@ def smoke(directory):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--bundle', type=Path, default=ROOT / 'artifacts/formal-v1')
+    parser.add_argument('--bundle', type=Path, default=ROOT / 'artifacts/benchmark-v1')
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
     result = smoke(args.bundle)

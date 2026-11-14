@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+import shutil
 
 import numpy as np
 import torch
@@ -13,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from src.inference import InferenceBundle, nmse_per_frame
 from src.models.utils import build_model
+from tools.merge_bundles import merge
 
 
 class InferenceTest(unittest.TestCase):
@@ -33,6 +35,9 @@ class InferenceTest(unittest.TestCase):
                              models=[dict(run_id='tiny', model='transformer', weights='model.pt', config=config)],
                              model_source_sha256={'src/models/utils.py': self.digest(ROOT / 'src/models/utils.py')},
                              files_sha256={n: self.digest(self.directory / n) for n in ['model.pt', 'examples.npz']})
+        (self.directory / 'LICENSE').write_text('MIT test fixture')
+        self.manifest.update(license='MIT', dataset={'manifest_sha256': 'same'}, experiment_id='test',
+                             experiment_sha256='test-hash', tensor_shapes={'history': [10, 8, 4, 2], 'target': [5, 8, 4, 2]})
         self.save_manifest()
 
     @staticmethod
@@ -96,6 +101,33 @@ class InferenceTest(unittest.TestCase):
         np.testing.assert_array_equal(nmse_per_frame(np.zeros_like(target), target), np.ones((2, 5)))
         with self.assertRaises(ValueError):
             nmse_per_frame(target[:1], target)
+
+    def second_bundle(self):
+        directory = self.directory / 'second'
+        directory.mkdir()
+        for source, destination in [('model.pt', 'second.pt'), ('examples.npz', 'examples.npz'), ('LICENSE', 'LICENSE')]:
+            shutil.copy2(self.directory / source, directory / destination)
+        manifest = json.loads(json.dumps(self.manifest))
+        manifest['models'][0].update(run_id='second', weights='second.pt')
+        manifest['files_sha256']['second.pt'] = manifest['files_sha256'].pop('model.pt')
+        return directory, manifest
+
+    def test_compatible_bundles_merge_and_predict(self):
+        second, manifest = self.second_bundle()
+        (second / 'manifest.json').write_text(json.dumps(manifest))
+        merged = self.directory / 'merged'
+        merge([self.directory, second], merged)
+        bundle = InferenceBundle(merged)
+        self.assertEqual(len(bundle.entries), 2)
+        history, _ = bundle.example(30, 0)
+        np.testing.assert_array_equal(bundle.predict('tiny', history[None]), bundle.predict('second', history[None]))
+
+    def test_merge_rejects_different_normalization(self):
+        second, manifest = self.second_bundle()
+        manifest['normalization_scale'] = 3.
+        (second / 'manifest.json').write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, 'normalization_scale'):
+            merge([self.directory, second], self.directory / 'merged')
 
 
 if __name__ == '__main__':

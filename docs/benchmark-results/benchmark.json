@@ -1,0 +1,1187 @@
+{
+  "summary": [
+    {
+      "variant": "dast",
+      "velocity_kmh": 30,
+      "mean_db": -7.213616689046224,
+      "std_population_db": 0.01821215752776824,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "dast",
+      "velocity_kmh": 50,
+      "mean_db": -5.405561923980713,
+      "std_population_db": 0.019349708255613943,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "dast",
+      "velocity_kmh": 70,
+      "mean_db": -4.454835255940755,
+      "std_population_db": 0.02448665349863381,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "dast",
+      "velocity_kmh": 90,
+      "mean_db": -3.3130647341410318,
+      "std_population_db": 0.01606045758378767,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "dast",
+      "velocity_kmh": 120,
+      "mean_db": -2.2280826568603516,
+      "std_population_db": 0.009288490382930496,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "transformer",
+      "velocity_kmh": 30,
+      "mean_db": -5.3250759442647295,
+      "std_population_db": 0.024701234311784916,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "transformer",
+      "velocity_kmh": 50,
+      "mean_db": -4.020517508188884,
+      "std_population_db": 0.019527144354189764,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "transformer",
+      "velocity_kmh": 70,
+      "mean_db": -3.1909827391306558,
+      "std_population_db": 0.050273984938277685,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "transformer",
+      "velocity_kmh": 90,
+      "mean_db": -2.364696741104126,
+      "std_population_db": 0.0558101503015414,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "transformer",
+      "velocity_kmh": 120,
+      "mean_db": -1.4029637575149536,
+      "std_population_db": 0.06431573549324676,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "lstm",
+      "velocity_kmh": 30,
+      "mean_db": -4.752788225809733,
+      "std_population_db": 0.03780000420048696,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "lstm",
+      "velocity_kmh": 50,
+      "mean_db": -3.4185990492502847,
+      "std_population_db": 0.01201949487976895,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "lstm",
+      "velocity_kmh": 70,
+      "mean_db": -2.6558762391408286,
+      "std_population_db": 0.015572340610058747,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "lstm",
+      "velocity_kmh": 90,
+      "mean_db": -1.884343147277832,
+      "std_population_db": 0.0124470108754262,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "lstm",
+      "velocity_kmh": 120,
+      "mean_db": -1.1198081970214844,
+      "std_population_db": 0.003931106099208227,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "gru",
+      "velocity_kmh": 30,
+      "mean_db": -4.434469381968181,
+      "std_population_db": 0.02584664589075201,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "gru",
+      "velocity_kmh": 50,
+      "mean_db": -3.0056162675221763,
+      "std_population_db": 0.027983055339185325,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "gru",
+      "velocity_kmh": 70,
+      "mean_db": -2.185697635014852,
+      "std_population_db": 0.06411368895018098,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "gru",
+      "velocity_kmh": 90,
+      "mean_db": -1.4422740936279297,
+      "std_population_db": 0.06008537415079484,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "gru",
+      "velocity_kmh": 120,
+      "mean_db": -0.7955367565155029,
+      "std_population_db": 0.050993675370650644,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "rnn",
+      "velocity_kmh": 30,
+      "mean_db": -4.40000565846761,
+      "std_population_db": 0.0348983766289716,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "rnn",
+      "velocity_kmh": 50,
+      "mean_db": -2.7266554037729898,
+      "std_population_db": 0.05344698659284856,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "rnn",
+      "velocity_kmh": 70,
+      "mean_db": -1.8837252457936604,
+      "std_population_db": 0.021652446405615727,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "rnn",
+      "velocity_kmh": 90,
+      "mean_db": -1.17478346824646,
+      "std_population_db": 0.023798904307929622,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "rnn",
+      "velocity_kmh": 120,
+      "mean_db": -0.5949785113334656,
+      "std_population_db": 0.01000798419788926,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "cnn",
+      "velocity_kmh": 30,
+      "mean_db": -3.162062644958496,
+      "std_population_db": 0.14819689668886002,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "cnn",
+      "velocity_kmh": 50,
+      "mean_db": -2.061322569847107,
+      "std_population_db": 0.057691141965409955,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "cnn",
+      "velocity_kmh": 70,
+      "mean_db": -1.5019238392512004,
+      "std_population_db": 0.039333795987151074,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "cnn",
+      "velocity_kmh": 90,
+      "mean_db": -1.006104548772176,
+      "std_population_db": 0.027722173482815648,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "cnn",
+      "velocity_kmh": 120,
+      "mean_db": -0.5966681639353434,
+      "std_population_db": 0.04071522140201691,
+      "runs": 3,
+      "kind": "trained"
+    },
+    {
+      "variant": "ar",
+      "velocity_kmh": 30,
+      "mean_db": -4.423397064208984,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "ar",
+      "velocity_kmh": 50,
+      "mean_db": -1.5003324747085571,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "ar",
+      "velocity_kmh": 70,
+      "mean_db": 0.2175869196653366,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "ar",
+      "velocity_kmh": 90,
+      "mean_db": 2.581341505050659,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "ar",
+      "velocity_kmh": 120,
+      "mean_db": 4.312089920043945,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "ar_bounded",
+      "velocity_kmh": 30,
+      "mean_db": -5.430020809173584,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "ar_bounded",
+      "velocity_kmh": 50,
+      "mean_db": -2.531569242477417,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "ar_bounded",
+      "velocity_kmh": 70,
+      "mean_db": -0.8422121405601501,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "ar_bounded",
+      "velocity_kmh": 90,
+      "mean_db": 1.0334302186965942,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "ar_bounded",
+      "velocity_kmh": 120,
+      "mean_db": 2.3417844772338867,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "kalman",
+      "velocity_kmh": 30,
+      "mean_db": -5.552151679992676,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "kalman",
+      "velocity_kmh": 50,
+      "mean_db": -2.615492105484009,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "kalman",
+      "velocity_kmh": 70,
+      "mean_db": -0.9122652411460876,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "kalman",
+      "velocity_kmh": 90,
+      "mean_db": 0.974438488483429,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "kalman",
+      "velocity_kmh": 120,
+      "mean_db": 2.2756145000457764,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "no_prediction",
+      "velocity_kmh": 30,
+      "mean_db": -1.3792825937271118,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "no_prediction",
+      "velocity_kmh": 50,
+      "mean_db": 0.5490927696228027,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "no_prediction",
+      "velocity_kmh": 70,
+      "mean_db": 1.2783557176589966,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "no_prediction",
+      "velocity_kmh": 90,
+      "mean_db": 1.7115782499313354,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    },
+    {
+      "variant": "no_prediction",
+      "velocity_kmh": 120,
+      "mean_db": 2.235111713409424,
+      "std_population_db": null,
+      "runs": 1,
+      "kind": "deterministic"
+    }
+  ],
+  "individual_neural": [
+    {
+      "variant": "dast",
+      "seed": 42,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -7.225570201873779
+    },
+    {
+      "variant": "dast",
+      "seed": 42,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -5.424205780029297
+    },
+    {
+      "variant": "dast",
+      "seed": 42,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -4.481366157531738
+    },
+    {
+      "variant": "dast",
+      "seed": 42,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -3.335129976272583
+    },
+    {
+      "variant": "dast",
+      "seed": 42,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -2.2310826778411865
+    },
+    {
+      "variant": "transformer",
+      "seed": 42,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -5.315885543823242
+    },
+    {
+      "variant": "transformer",
+      "seed": 42,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -4.039947509765625
+    },
+    {
+      "variant": "transformer",
+      "seed": 42,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -3.1204094886779785
+    },
+    {
+      "variant": "transformer",
+      "seed": 42,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -2.285771369934082
+    },
+    {
+      "variant": "transformer",
+      "seed": 42,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -1.3269661664962769
+    },
+    {
+      "variant": "dast",
+      "seed": 123,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -7.227397441864014
+    },
+    {
+      "variant": "dast",
+      "seed": 123,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -5.4135870933532715
+    },
+    {
+      "variant": "dast",
+      "seed": 123,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -4.460843563079834
+    },
+    {
+      "variant": "dast",
+      "seed": 123,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -3.3066959381103516
+    },
+    {
+      "variant": "dast",
+      "seed": 123,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -2.2376580238342285
+    },
+    {
+      "variant": "transformer",
+      "seed": 123,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -5.3004841804504395
+    },
+    {
+      "variant": "transformer",
+      "seed": 123,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -3.993807792663574
+    },
+    {
+      "variant": "transformer",
+      "seed": 123,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -3.218801259994507
+    },
+    {
+      "variant": "transformer",
+      "seed": 123,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -2.403660774230957
+    },
+    {
+      "variant": "transformer",
+      "seed": 123,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -1.484241247177124
+    },
+    {
+      "variant": "dast",
+      "seed": 2024,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -7.187882423400879
+    },
+    {
+      "variant": "dast",
+      "seed": 2024,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -5.37889289855957
+    },
+    {
+      "variant": "dast",
+      "seed": 2024,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -4.422296047210693
+    },
+    {
+      "variant": "dast",
+      "seed": 2024,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -3.297368288040161
+    },
+    {
+      "variant": "dast",
+      "seed": 2024,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -2.2155072689056396
+    },
+    {
+      "variant": "transformer",
+      "seed": 2024,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -5.358858108520508
+    },
+    {
+      "variant": "transformer",
+      "seed": 2024,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -4.027797222137451
+    },
+    {
+      "variant": "transformer",
+      "seed": 2024,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -3.2337374687194824
+    },
+    {
+      "variant": "transformer",
+      "seed": 2024,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -2.404658079147339
+    },
+    {
+      "variant": "transformer",
+      "seed": 2024,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -1.39768385887146
+    },
+    {
+      "variant": "lstm",
+      "seed": 42,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -4.78935432434082
+    },
+    {
+      "variant": "lstm",
+      "seed": 42,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -3.428678035736084
+    },
+    {
+      "variant": "lstm",
+      "seed": 42,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -2.674147129058838
+    },
+    {
+      "variant": "lstm",
+      "seed": 42,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.8856555223464966
+    },
+    {
+      "variant": "lstm",
+      "seed": 42,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -1.1154054403305054
+    },
+    {
+      "variant": "gru",
+      "seed": 42,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -4.46683931350708
+    },
+    {
+      "variant": "gru",
+      "seed": 42,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -3.0264968872070312
+    },
+    {
+      "variant": "gru",
+      "seed": 42,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -2.243291139602661
+    },
+    {
+      "variant": "gru",
+      "seed": 42,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.502264142036438
+    },
+    {
+      "variant": "gru",
+      "seed": 42,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -0.8313559293746948
+    },
+    {
+      "variant": "rnn",
+      "seed": 42,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -4.394440650939941
+    },
+    {
+      "variant": "rnn",
+      "seed": 42,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -2.660701274871826
+    },
+    {
+      "variant": "rnn",
+      "seed": 42,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -1.8580036163330078
+    },
+    {
+      "variant": "rnn",
+      "seed": 42,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.208099365234375
+    },
+    {
+      "variant": "rnn",
+      "seed": 42,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -0.6028482913970947
+    },
+    {
+      "variant": "cnn",
+      "seed": 42,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -3.018101453781128
+    },
+    {
+      "variant": "cnn",
+      "seed": 42,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -1.9881426095962524
+    },
+    {
+      "variant": "cnn",
+      "seed": 42,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -1.4464213848114014
+    },
+    {
+      "variant": "cnn",
+      "seed": 42,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -0.9687379598617554
+    },
+    {
+      "variant": "cnn",
+      "seed": 42,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -0.5484731197357178
+    },
+    {
+      "variant": "lstm",
+      "seed": 123,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -4.700734615325928
+    },
+    {
+      "variant": "lstm",
+      "seed": 123,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -3.401705741882324
+    },
+    {
+      "variant": "lstm",
+      "seed": 123,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -2.6360929012298584
+    },
+    {
+      "variant": "lstm",
+      "seed": 123,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.8684849739074707
+    },
+    {
+      "variant": "lstm",
+      "seed": 123,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -1.1190698146820068
+    },
+    {
+      "variant": "gru",
+      "seed": 123,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -4.403580188751221
+    },
+    {
+      "variant": "gru",
+      "seed": 123,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -2.9660627841949463
+    },
+    {
+      "variant": "gru",
+      "seed": 123,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -2.0962536334991455
+    },
+    {
+      "variant": "gru",
+      "seed": 123,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.3601611852645874
+    },
+    {
+      "variant": "gru",
+      "seed": 123,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -0.7234213352203369
+    },
+    {
+      "variant": "rnn",
+      "seed": 123,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -4.360319137573242
+    },
+    {
+      "variant": "rnn",
+      "seed": 123,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -2.7276573181152344
+    },
+    {
+      "variant": "rnn",
+      "seed": 123,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -1.9109749794006348
+    },
+    {
+      "variant": "rnn",
+      "seed": 123,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.1622631549835205
+    },
+    {
+      "variant": "rnn",
+      "seed": 123,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -0.6012313365936279
+    },
+    {
+      "variant": "cnn",
+      "seed": 123,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -3.1021347045898438
+    },
+    {
+      "variant": "cnn",
+      "seed": 123,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -2.0666728019714355
+    },
+    {
+      "variant": "cnn",
+      "seed": 123,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -1.526461124420166
+    },
+    {
+      "variant": "cnn",
+      "seed": 123,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.0350631475448608
+    },
+    {
+      "variant": "cnn",
+      "seed": 123,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -0.6480516195297241
+    },
+    {
+      "variant": "lstm",
+      "seed": 2024,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -4.768275737762451
+    },
+    {
+      "variant": "lstm",
+      "seed": 2024,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -3.4254133701324463
+    },
+    {
+      "variant": "lstm",
+      "seed": 2024,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -2.657388687133789
+    },
+    {
+      "variant": "lstm",
+      "seed": 2024,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.8988889455795288
+    },
+    {
+      "variant": "lstm",
+      "seed": 2024,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -1.124949336051941
+    },
+    {
+      "variant": "gru",
+      "seed": 2024,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -4.43298864364624
+    },
+    {
+      "variant": "gru",
+      "seed": 2024,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -3.024289131164551
+    },
+    {
+      "variant": "gru",
+      "seed": 2024,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -2.217548131942749
+    },
+    {
+      "variant": "gru",
+      "seed": 2024,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.4643969535827637
+    },
+    {
+      "variant": "gru",
+      "seed": 2024,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -0.831833004951477
+    },
+    {
+      "variant": "rnn",
+      "seed": 2024,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -4.445257186889648
+    },
+    {
+      "variant": "rnn",
+      "seed": 2024,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -2.791607618331909
+    },
+    {
+      "variant": "rnn",
+      "seed": 2024,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -1.8821971416473389
+    },
+    {
+      "variant": "rnn",
+      "seed": 2024,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.1539878845214844
+    },
+    {
+      "variant": "rnn",
+      "seed": 2024,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -0.5808559060096741
+    },
+    {
+      "variant": "cnn",
+      "seed": 2024,
+      "velocity_kmh": 30,
+      "n": 500,
+      "nmse_db": -3.3659517765045166
+    },
+    {
+      "variant": "cnn",
+      "seed": 2024,
+      "velocity_kmh": 50,
+      "n": 500,
+      "nmse_db": -2.129152297973633
+    },
+    {
+      "variant": "cnn",
+      "seed": 2024,
+      "velocity_kmh": 70,
+      "n": 500,
+      "nmse_db": -1.5328890085220337
+    },
+    {
+      "variant": "cnn",
+      "seed": 2024,
+      "velocity_kmh": 90,
+      "n": 500,
+      "nmse_db": -1.014512538909912
+    },
+    {
+      "variant": "cnn",
+      "seed": 2024,
+      "velocity_kmh": 120,
+      "n": 500,
+      "nmse_db": -0.5934797525405884
+    }
+  ],
+  "deterministic": {
+    "state": "complete",
+    "data_provenance": {
+      "manifest_sha256": "fd206ff68f279c88146b7ec1afe710feaa45d4e48f0b70f65a26605a941eb6db",
+      "observation_policy": "history_only_v1"
+    },
+    "data_content_sha256": "88a533c21aca43dfa85a16da51e00b0665dc5a2723e8f6f845919acd08f9042d",
+    "policy": {
+      "order": 4,
+      "ridge": 0.001,
+      "bounded_amplitude_factor": 3.0,
+      "kalman": "complex covariance, Joseph update; AR estimated from history",
+      "kalman_q_r": "each half of mean AR residual power plus 1e-6",
+      "no_prediction": "repeat last noisy observation for all five forecast frames",
+      "seed_policy": "deterministic references run once, not copied across training seeds"
+    },
+    "source_sha256": {
+      "src/references.py": "e437eb6a6f10e84ad997ee7f2053b3dc124f7075e249b14ffd9f8393ce5acde8",
+      "src/inference.py": "99f6e5262044eebe07e12bc48a63b6ecf2d1d8eb6c64cc149bce9870b307859a",
+      "tools/evaluate_references.py": "d5fe6ad7c6efcff6498f36ffb307f8eb79f080da6a5cce70b3377299662cace2"
+    },
+    "methods": [
+      "ar",
+      "ar_bounded",
+      "kalman",
+      "no_prediction"
+    ],
+    "scores": [
+      {
+        "variant": "ar",
+        "velocity_kmh": 30,
+        "n": 500,
+        "nmse_db": -4.423397064208984
+      },
+      {
+        "variant": "ar_bounded",
+        "velocity_kmh": 30,
+        "n": 500,
+        "nmse_db": -5.430020809173584
+      },
+      {
+        "variant": "kalman",
+        "velocity_kmh": 30,
+        "n": 500,
+        "nmse_db": -5.552151679992676
+      },
+      {
+        "variant": "no_prediction",
+        "velocity_kmh": 30,
+        "n": 500,
+        "nmse_db": -1.3792825937271118
+      },
+      {
+        "variant": "ar",
+        "velocity_kmh": 50,
+        "n": 500,
+        "nmse_db": -1.5003324747085571
+      },
+      {
+        "variant": "ar_bounded",
+        "velocity_kmh": 50,
+        "n": 500,
+        "nmse_db": -2.531569242477417
+      },
+      {
+        "variant": "kalman",
+        "velocity_kmh": 50,
+        "n": 500,
+        "nmse_db": -2.615492105484009
+      },
+      {
+        "variant": "no_prediction",
+        "velocity_kmh": 50,
+        "n": 500,
+        "nmse_db": 0.5490927696228027
+      },
+      {
+        "variant": "ar",
+        "velocity_kmh": 70,
+        "n": 500,
+        "nmse_db": 0.2175869196653366
+      },
+      {
+        "variant": "ar_bounded",
+        "velocity_kmh": 70,
+        "n": 500,
+        "nmse_db": -0.8422121405601501
+      },
+      {
+        "variant": "kalman",
+        "velocity_kmh": 70,
+        "n": 500,
+        "nmse_db": -0.9122652411460876
+      },
+      {
+        "variant": "no_prediction",
+        "velocity_kmh": 70,
+        "n": 500,
+        "nmse_db": 1.2783557176589966
+      },
+      {
+        "variant": "ar",
+        "velocity_kmh": 90,
+        "n": 500,
+        "nmse_db": 2.581341505050659
+      },
+      {
+        "variant": "ar_bounded",
+        "velocity_kmh": 90,
+        "n": 500,
+        "nmse_db": 1.0334302186965942
+      },
+      {
+        "variant": "kalman",
+        "velocity_kmh": 90,
+        "n": 500,
+        "nmse_db": 0.974438488483429
+      },
+      {
+        "variant": "no_prediction",
+        "velocity_kmh": 90,
+        "n": 500,
+        "nmse_db": 1.7115782499313354
+      },
+      {
+        "variant": "ar",
+        "velocity_kmh": 120,
+        "n": 500,
+        "nmse_db": 4.312089920043945
+      },
+      {
+        "variant": "ar_bounded",
+        "velocity_kmh": 120,
+        "n": 500,
+        "nmse_db": 2.3417844772338867
+      },
+      {
+        "variant": "kalman",
+        "velocity_kmh": 120,
+        "n": 500,
+        "nmse_db": 2.2756145000457764
+      },
+      {
+        "variant": "no_prediction",
+        "velocity_kmh": 120,
+        "n": 500,
+        "nmse_db": 2.235111713409424
+      }
+    ]
+  },
+  "scope": "Same history-only dataset and recipe; extension after initial formal study."
+}

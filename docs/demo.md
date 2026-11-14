@@ -6,9 +6,9 @@ account, API key or training job. After installation, model inference works offl
 ## Start
 
 From the repository root, install the locked environment and extract the
-[inference ZIP](https://github.com/MinhNhan0508/channel-prediction/releases/download/v1.0.0/dast-formal-v1-inference.zip)
-at the repository root. The resulting `artifacts/formal-v1/` directory must contain `manifest.json`,
-`examples.npz` and the 15 inference-only `.pt` files.
+[inference ZIP](https://github.com/MinhNhan0508/channel-prediction/releases/download/v1.0.0/dast-benchmark-v1-inference.zip)
+at the repository root. The resulting `artifacts/benchmark-v1/` directory must contain `manifest.json`,
+`examples.npz` and the 27 inference-only `.pt` files.
 
 ```sh
 uv sync --locked --extra train
@@ -23,7 +23,9 @@ The server binds to loopback and does not create a public Gradio share link.
 ## Explore
 
 1. Choose a test velocity, example index and training seed.
-2. Click **Run prediction**. All five variants use the same noisy history.
+2. Choose **Model benchmark** or **Component ablations**, then click **Run prediction**.
+   Every method receives the same noisy history. Classical references are deterministic;
+   the selected training seed applies only to neural models.
 3. The left plot shows one complex channel coefficient's magnitude over time.
    Change RF chain or UE antenna to inspect another coefficient.
 4. The right plot and score table measure error across all coefficients,
@@ -31,7 +33,7 @@ The server binds to loopback and does not create a public Gradio share link.
 
 Indices 0–7 are the first eight lexicographically sorted test sequences at each
 velocity. They were not selected by model score. A single-example score can be
-very different from the full test-set average in `docs/results/README.md`.
+very different from the full test-set average in `docs/benchmark-results/README.md`.
 Velocity is simulation metadata for selecting examples, not a model input.
 
 The app verifies file digests, model source identity and tensor shapes. It refuses

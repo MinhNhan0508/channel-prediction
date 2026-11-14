@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "id": "baseline_extension_causal_v1",
+  "data_dir": "data/sionna_causal_v1",
+  "output_dir": "runs/baseline-v1",
+  "device": "auto",
+  "require_cuda": true,
+  "require_data_integrity": true,
+  "evaluate_when_complete": true,
+  "train_config": "configs/train/formal_v1.yaml",
+  "seeds": [
+    42,
+    123,
+    2024
+  ],
+  "test_velocities": [
+    30,
+    50,
+    70,
+    90,
+    120
+  ],
+  "expected_split_counts": {
+    "train": 8000,
+    "val": 1000,
+    "test_v30": 500,
+    "test_v50": 500,
+    "test_v70": 500,
+    "test_v90": 500,
+    "test_v120": 500
+  },
+  "variants": [
+    {
+      "id": "lstm",
+      "model": "lstm",
+      "model_config": "configs/model/lstm.yaml"
+    },
+    {
+      "id": "gru",
+      "model": "gru",
+      "model_config": "configs/model/gru.yaml"
+    },
+    {
+      "id": "rnn",
+      "model": "rnn",
+      "model_config": "configs/model/rnn.yaml"
+    },
+    {
+      "id": "cnn",
+      "model": "cnn",
+      "model_config": "configs/model/cnn.yaml"
+    }
+  ],
+  "runs": [
+    {
+      "variant": "lstm",
+      "seed": 42
+    },
+    {
+      "variant": "gru",
+      "seed": 42
+    },
+    {
+      "variant": "rnn",
+      "seed": 42
+    },
+    {
+      "variant": "cnn",
+      "seed": 42
+    },
+    {
+      "variant": "lstm",
+      "seed": 123
+    },
+    {
+      "variant": "gru",
+      "seed": 123
+    },
+    {
+      "variant": "rnn",
+      "seed": 123
+    },
+    {
+      "variant": "cnn",
+      "seed": 123
+    },
+    {
+      "variant": "lstm",
+      "seed": 2024
+    },
+    {
+      "variant": "gru",
+      "seed": 2024
+    },
+    {
+      "variant": "rnn",
+      "seed": 2024
+    },
+    {
+      "variant": "cnn",
+      "seed": 2024
+    }
+  ]
+}

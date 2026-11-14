@@ -23,13 +23,14 @@ from src.training.trainer import Trainer
 from src.utils.config import load_config
 from src.utils.logger import Logger
 from src.utils.seed import set_seed
+from src.utils.atomic_io import replace_with_retry
 
 
 def write_json(path,value):
     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
     temporary=path.with_name(path.name+'.tmp')
     temporary.write_text(json.dumps(value,indent=2,allow_nan=False),encoding='utf-8')
-    os.replace(temporary,path)
+    replace_with_retry(temporary,path)
 
 
 @contextlib.contextmanager
