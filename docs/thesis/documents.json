@@ -1,0 +1,33 @@
+{
+  "release": "v1.0.2",
+  "documents": [
+    {
+      "document": "report",
+      "filename": "dast-thesis-report.vi.pdf",
+      "sha256": "9c95b3a69cd20cf3e914957f57fe1472f5eed28f04fc898562b618776d91b908",
+      "bytes": 5209811,
+      "pages": 82,
+      "original_sha256": "5628490a0def148e4280dc4def02bbcce0a28003ffc17036e0ccb991abcd7b50",
+      "original_pages": 87,
+      "removed_original_pages": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "student_number_redactions": 6
+    },
+    {
+      "document": "slides",
+      "filename": "dast-thesis-slides.vi.pdf",
+      "sha256": "1073eac0a6c6a111e25cd7058084a8ddaa5a373f9ce1411bc786eb12674733be",
+      "bytes": 4684643,
+      "pages": 24,
+      "original_sha256": "d5d2b972d28d1b1593413c4dbd3a4ffb62b41c054070ab2d4dd16e030e4eb244",
+      "original_pages": 24,
+      "removed_original_pages": [],
+      "student_number_redactions": 2
+    }
+  ]
+}

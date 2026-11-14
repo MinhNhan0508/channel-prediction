@@ -99,6 +99,17 @@ outside source history. See [demo instructions](docs/demo.md).
 
 ![Local model comparison demo](docs/assets/demo-benchmark.png)
 
+## Thesis and presentation
+
+- [Thesis report (Vietnamese, 82 pages)](https://github.com/MinhNhan0508/channel-prediction/releases/download/v1.0.2/dast-thesis-report.vi.pdf)
+- [Defense slides (Vietnamese, 24 slides)](https://github.com/MinhNhan0508/channel-prediction/releases/download/v1.0.2/dast-thesis-slides.vi.pdf)
+
+These are public copies of the July 2026 academic documents. Student IDs and
+administrative review/signature pages have been removed; the technical content
+is preserved. Their results describe the thesis-era experiments, while the
+benchmark above was rerun after the thesis. See the [document notes](docs/thesis/README.md)
+for the differences and file checksums.
+
 ## Reproduce and test
 
 ```sh

@@ -13,5 +13,11 @@ Literature references and modeling distinctions are listed in
 
 The inference examples are synthetic channels produced by the project's
 generator. Trained weights and example data belong to the same maintained
-experiment. Third-party papers, university administrative documents and the
-original thesis report are not redistributed in this source package.
+experiment. Third-party papers and university administrative documents are not
+redistributed in this source package.
+
+Public copies of the thesis report and defense slides are provided separately
+as Release PDF assets, with the original author and supervisor credits retained.
+See [document notes](docs/thesis/README.md). The repository's MIT license does not
+relicense university marks or third-party figures and other cited material in
+those academic documents.
